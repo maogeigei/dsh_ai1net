@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>管理门户</title>
+<link rel="icon" href="/favicon.svg" />
+<link rel="stylesheet" href="/design.css" />
+<style>
+  /* 06-工作台UI规范 Token：亮色工具后台 + 蓝主色 + 橙强调 */
+  :root {
+    --bp-primary: #2f6fed; --bp-primary-soft: #eaf1fe; --bp-primary-hover: #2a5fd0;
+    --bp-accent: #e8590c; --bp-danger: #d93026;
+    --bp-bg: #f5f6f8; --bp-panel: #ffffff; --bp-border: #e3e6ea;
+    --bp-text: #24292f; --bp-dim: #6b7280; --bp-head: #f6f8fa;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; background: var(--bp-bg); color: var(--bp-text); }
+
+  /* ── 顶栏 ── */
+  .topbar { display: flex; align-items: center; gap: 20px; height: 55px; padding: 0 20px; background: #fff; border-bottom: 1px solid var(--bp-border); position: sticky; top: 0; z-index: 50; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; }
+  .brand .logo { width: 28px; height: 28px; border-radius: 8px; }
+  .crumbs { display: flex; align-items: center; gap: 6px; flex: 1; font-size: 14px; }
+  .crumb-home { color: var(--bp-primary); text-decoration: none; cursor: pointer; }
+  .crumb-home:hover { text-decoration: underline; }
+  .crumb-sep { color: var(--bp-dim); }
+  .crumb-current { color: var(--bp-text); font-weight: 600; }
+  .top-actions { display: flex; align-items: center; gap: 10px; }
+  .who { color: var(--bp-dim); font-size: 13px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 14px; cursor: pointer; border: 1px solid var(--bp-border); background: #fff; color: var(--bp-text); transition: all .15s; }
+  .btn:hover { border-color: var(--bp-primary); color: var(--bp-primary); }
+  .btn-primary { background: var(--bp-primary); border-color: var(--bp-primary); color: #fff; }
+  .btn-primary:hover { background: var(--bp-primary-hover); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* ── 内容区 ── */
+  #view { max-width: 960px; margin: 0 auto; padding: 24px 20px 48px; }
+  .page-head { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+  .page-head .page-title { margin: 0; }
+  .page-head .page-sub { margin: 4px 0 0; }
+  .page-title { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  .page-sub { font-size: 13px; color: var(--bp-dim); margin: 0 0 20px; }
+  .home-section { margin-bottom: 24px; }
+  .home-section-title { font-size: 13px; color: var(--bp-dim); font-weight: 600; margin: 0 0 10px; }
+  .card { background: #fff; border: 1px solid var(--bp-border); border-radius: 10px; padding: 18px; }
+
+  /* ── 首页导航卡片 ── */
+  .nav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .nav-card { display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid var(--bp-border); border-radius: 10px; padding: 18px 16px; cursor: pointer; transition: all .15s; }
+  .nav-card:hover { border-color: var(--bp-primary); box-shadow: 0 4px 12px rgba(47,111,237,.12); transform: translateY(-2px); }
+  .nav-card .ic { color: var(--bp-primary); }
+  .nav-card .t { font-size: 15px; font-weight: 600; }
+  .nav-card .d { font-size: 12px; color: var(--bp-dim); }
+
+  /* ── 表格 ── */
+  .table-wrap { overflow: auto; border: 1px solid var(--bp-border); border-radius: 8px; background: #fff; }
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
+  table.tbl th { position: sticky; top: 0; background: var(--bp-head); padding: 8px 10px; text-align: left; font-weight: 600; white-space: nowrap; border-bottom: 1px solid var(--bp-border); z-index: 1; }
+  table.tbl td { padding: 7px 10px; border-bottom: 1px solid var(--bp-border); white-space: nowrap; }
+  table.tbl tbody tr:last-child td { border-bottom: none; }
+  table.tbl tbody tr:hover { background: var(--bp-primary-soft); }
+  td.num { text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--bp-dim); }
+  td.desc { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--bp-dim); }
+  td.act { text-align: center; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 13px; }
+  .badge.admin { background: var(--bp-primary-soft); color: var(--bp-primary); }
+  .badge.active { background: #e6f7ef; color: #1a7f37; }
+  .badge.pending { background: #fff4e5; color: var(--bp-accent); }
+  .badge.disabled { background: #f0f1f3; color: var(--bp-dim); }
+  .btn-sm { display: inline-flex; align-items: center; padding: 3px 10px; font-size: 14px; border-radius: 6px; cursor: pointer; border: 1px solid var(--bp-border); background: #fff; color: var(--bp-text); }
+  .btn-sm:hover { border-color: var(--bp-primary); color: var(--bp-primary); }
+  .btn-sm.danger { color: var(--bp-danger); }
+  .btn-sm.danger:hover { border-color: var(--bp-danger); }
+
+  /* ── 上传行 / 提示 ── */
+  .upload-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .upload-row input[type='file'] { flex: 1; min-width: 220px; padding: 8px; border: 1px solid var(--bp-border); border-radius: 8px; font-size: 14px; background: #fff; }
+  .hint { font-size: 12px; color: var(--bp-dim); margin: 0 0 14px; line-height: 1.6; }
+
+
+  /* ── 页内 Tab（06 §4.4 下划线式；类名避开全局 .tab 以免与顶栏胶囊式冲突） ── */
+  .pg-tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--bp-border); margin: 0 0 16px; }
+  .pg-tab { padding: 8px 2px 10px; font-size: 15px; color: var(--bp-dim); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s, border-color .15s; user-select: none; white-space: nowrap; }
+  .pg-tab:hover { color: var(--bp-primary); }
+  .pg-tab.active { color: var(--bp-primary); font-weight: 600; border-bottom-color: var(--bp-primary); }
+  .pg-tab .pg-cnt { display: inline-block; min-width: 18px; padding: 1px 6px; margin-left: 6px; border-radius: 9px; background: var(--bp-primary-soft); color: var(--bp-primary); font-size: 12px; font-weight: 600; line-height: 16px; text-align: center; }
+  .pg-tab:not(.active) .pg-cnt { background: #f0f1f3; color: var(--bp-dim); }
+  .card-h { display: flex; align-items: baseline; gap: 10px; font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+  .card-h .sub { font-size: 13px; font-weight: 400; color: var(--bp-dim); }
+
+
+  /* ── 白名单表格：以「说明」为主视觉（一眼看懂插件用途） ── */
+  .wl-cell { white-space: normal; }
+  .wl-desc { font-size: 14px; line-height: 1.5; color: var(--bp-text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 620px; }
+  .wl-desc.fallback { font-weight: 600; }
+  .wl-meta { font-size: 12px; color: var(--bp-dim); margin-top: 3px; max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wl-cat { font-size: 12px; color: var(--bp-dim); }  /* ── 文件树 ── */
+
+  .wl-link { text-decoration: none; white-space: nowrap; }
+
+  /* 插件管理页：表格 6 列信息量大，单独放宽容器（其他页仍 960）。 */
+  #view.page-plugins { max-width: 1200px; }
+  /* 2026-09-12：插件管理页底部留白已移除（见§六修正）。
+     原因：列表上方约 362px + 列表高度 + 按钮行，若再加底部留白会让整页必然超出视口。
+     现列表高度纯自适应（calc(100vh - 400px)），小屏自动变矮、不超屏；大屏自然更高。 */
+  .wl-cat { white-space: nowrap; }  .pathbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .pathbar .crumbs { gap: 4px; }
+  .pathbar .crumb { color: var(--bp-primary); cursor: pointer; font-size: 14px; }
+  .pathbar .crumb:hover { text-decoration: underline; }
+  .dsh-bar { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--bp-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+  .dsh-bar .stat { font-size: 14px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot.on { background: #1fb56a; } .dot.off { background: #c4c9d0; }
+
+  /* ── 密钥 ── */
+  .key-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--bp-border); }
+  .key-row:last-child { border-bottom: none; }
+
+  /* ── 空状态 / Toast ── */
+  .empty { padding: 48px 20px; text-align: center; color: var(--bp-dim); font-size: 14px; }
+  .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: #24292f; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px; z-index: 200; display: none; white-space: pre-wrap; max-width: 90vw; }
+  .toast.show { display: block; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><img class="logo" src="/favicon.svg" alt="" /><span>管理门户</span></div>
+  <nav class="crumbs" id="crumbs"></nav>
+  <div class="top-actions">
+    <span class="who" id="who"></span>
+    <button class="btn" id="btnHome">首页</button>
+    <button class="btn" id="logoutBtn">退出</button>
+  </div>
+</header>
+
+<main id="view"><div class="empty">加载中…</div></main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id)
+let toastTimer = null
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
+function fmtSize(n) { if (!n) return '—'; if (n < 1024) return n + ' B'; if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB'; return (n / 1024 / 1024).toFixed(1) + ' MB' }
+function toast(text) { const el = $('toast'); el.textContent = text; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 1800) }
+function when(ms) { return ms ? new Date(ms).toLocaleString() : '—' }
+async function me() { const r = await fetch('/api/auth/me'); return r.ok ? (await r.json()).user : null }
+function postJson(url, body) { return fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }) }
+function readAsBase64(file) { return String(new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file) })).split(',')[1] ?? '' }
+function emptyRow(cols, text) { return `<tr><td colspan="${cols}" style="text-align:center;color:var(--bp-dim);padding:40px 10px">${esc(text)}</td></tr>` }
+
+/* ================= 路由 ================= */
+const CRUMB_TITLES = { files: '实例管理', keys: '模型管理', users: '用户管理', skills: '技能管理', plugins: '插件管理' }
+function parseHash() { const h = (location.hash || '#/').replace(/^#/, ''); const parts = h.split('/').filter(Boolean); return parts[0] || '' }
+function updateCrumbs(name) {
+  const c = $('crumbs')
+  if (!name) { c.innerHTML = '<span class="crumb-current">管理门户</span>'; return }
+  c.innerHTML = `<a class="crumb-home" href="#/">管理门户</a><span class="crumb-sep">/</span><span class="crumb-current">${esc(CRUMB_TITLES[name] || name)}</span>`
+}
+function pageHead(title, sub) {
+  return `<div class="page-head"><button class="btn" data-back>← 返回</button><div><h1 class="page-title">${title}</h1><p class="page-sub">${sub}</p></div></div>`
+}
+
+function renderHome() {
+  const sec1 = [
+    { ic: '🖥️', t: '实例管理', d: '文件树 + DSH 启动', hash: '#/files' },
+    { ic: '🔑', t: '模型管理', d: '平台共享密钥', hash: '#/keys' },
+  ]
+  const sec2 = [
+    { ic: '👥', t: '用户管理', d: '审批 / 禁用 / 删除', hash: '#/users', admin: true },
+    { ic: '🧩', t: '技能管理', d: '共享技能上传', hash: '#/skills', admin: true },
+    { ic: '🔌', t: '插件管理', d: '功能插件投放', hash: '#/plugins', admin: true },
+    { ic: '📦', t: '运行环境', d: '共享运行时与工具', hash: '#/runtime', admin: true },
+  ]
+  const grid = (cards) => cards.filter((c) => !c.admin || isAdmin).map((c) => `
+    <div class="nav-card" data-hash="${c.hash}">
+      <div class="ic">${c.ic}</div>
+      <div class="t">${c.t}</div>
+      <div class="d">${c.d}</div>
+    </div>`).join('')
+  return `<h1 class="page-title">管理门户</h1><p class="page-sub">平台管理</p>
+    <div class="home-section"><div class="home-section-title">服务</div><div class="nav-grid">${grid(sec1)}</div></div>
+    <div class="home-section"><div class="home-section-title">管理</div><div class="nav-grid">${grid(sec2)}</div></div>`
+}
+
+/* ================= 服务管理（#/files） ================= */
+let currentPath = []
+function pathString() { return currentPath.join('/') }
+async function renderFiles() {
+  return `${pageHead('服务管理', '浏览文件、在此文件夹启动 DSH')}
+    <div class="dsh-bar">
+      <span class="stat" id="dshState"><span class="dot off"></span>未运行</span>
+      <button class="btn btn-primary" id="launchBtn">启动 DSH</button>
+      <button class="btn" id="stopBtn" style="display:none">停止</button>
+      <button class="btn" id="openDshBtn" style="display:none">打开 DSH ↗</button>
+      <span style="flex:1"></span>
+      <span style="font-size:13px;color:var(--bp-dim)">启动目录：<b id="dshFolder">根目录</b></span>
+    </div>
+    <div class="card">
+      <div class="pathbar">
+        <button class="btn btn-sm" id="newFolderBtn">新建文件夹</button>
+        <button class="btn btn-sm" id="uploadBtn">上传文件</button>
+        <span class="crumbs" id="breadcrumb"></span>
+      </div>
+      <div class="table-wrap"><table class="tbl">
+        <thead><tr><th>名称</th><th>类型</th><th class="num" style="text-align:right">大小</th><th>修改时间</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+    </div>
+    <input id="fileInput" type="file" style="display:none" />`
+}
+async function initFiles() {
+  async function load() {
+    const p = pathString()
+    const res = await fetch('/api/desktop/tree' + (p ? '?path=' + encodeURIComponent(p) : ''))
+    const body = await res.json()
+    const rows = $('rows')
+    rows.innerHTML = ''
+    if (p) rows.insertAdjacentHTML('beforeend', '<tr><td class="dir" data-up="1">..</td><td></td><td></td><td></td></tr>')
+    for (const e of body.entries || []) {
+      const href = e.type === 'dir' ? ' class="dir" data-path="' + encodeURIComponent(p ? p + '/' + e.name : e.name) + '"' : ''
+      rows.insertAdjacentHTML('beforeend', `<tr><td${href}>${esc(e.name)}</td><td>${e.type === 'dir' ? '文件夹' : '文件'}</td><td class="num">${fmtSize(e.size)}</td><td>${new Date(e.mtimeMs).toLocaleString()}</td></tr>`)
+    }
+    // 面包屑
+    const parts = ['<span class="crumb" data-path="">根</span>']
+    let acc = []
+    for (const seg of currentPath) { acc.push(seg); parts.push('<span class="crumb-sep">/</span><span class="crumb" data-path="' + esc(acc.join('/')) + '">' + esc(seg) + '</span>') }
+    $('breadcrumb').innerHTML = parts.join('')
+    $('breadcrumb').querySelectorAll('.crumb').forEach((c) => c.addEventListener('click', () => { currentPath = c.dataset.path ? c.dataset.path.split('/').filter(Boolean) : []; initFiles() }))
+    rows.querySelectorAll('.dir[data-path]').forEach((el) => el.addEventListener('click', () => { currentPath = decodeURIComponent(el.dataset.path).split('/').filter(Boolean); initFiles() }))
+    const up = rows.querySelector('.dir[data-up]')
+    if (up) up.addEventListener('click', () => { currentPath = currentPath.slice(0, -1); initFiles() })
+  }
+  async function refreshDsh() {
+    const res = await fetch('/api/dsh/status'); if (!res.ok) return
+    const body = await res.json()
+    const running = body.running
+    $('dshState').innerHTML = `<span class="dot ${running ? 'on' : 'off'}"></span>${running ? '运行中' : '未运行'}`
+    $('stopBtn').style.display = running ? '' : 'none'
+    $('openDshBtn').style.display = running ? '' : 'none'
+    if (running) $('openDshBtn').onclick = () => window.open(body.url, '_blank')
+  }
+  $('dshFolder').textContent = pathString() || '根目录'
+  $('launchBtn').onclick = async () => {
+    const res = await postJson('/api/dsh/launch', { folder: pathString() })
+    if (!res.ok) { const b = await res.json().catch(() => ({})); toast(b.error === 'already_running' ? '已有运行中的 DSH' : '启动失败'); return }
+    toast('DSH 已启动'); await refreshDsh()
+  }
+  $('stopBtn').onclick = async () => { await fetch('/api/dsh/stop', { method: 'POST' }); await refreshDsh() }
+  $('newFolderBtn').onclick = () => { const name = prompt('文件夹名称：'); if (name) doCreate(name, 'dir') }
+  $('uploadBtn').onclick = () => $('fileInput').click()
+  $('fileInput').onchange = async (ev) => {
+    const file = ev.target.files[0]; if (!file) return
+    const data = await readAsBase64(file)
+    const res = await postJson('/api/fs/upload', { path: pathString(), name: file.name, data })
+    if (!res.ok) { const e = (await res.json().catch(() => ({}))).error; toast('上传失败：' + (e || res.status)); return }
+    ev.target.value = ''; await load()
+  }
+  async function doCreate(name, type) {
+    const res = await postJson('/api/fs/create', { path: pathString(), name, type })
+    if (!res.ok) { const e = (await res.json().catch(() => ({}))).error; toast('创建失败：' + (e || res.status)); return }
+    await load()
+  }
+  await load(); await refreshDsh()
+}
+
+/* ================= 密钥管理（#/keys） ================= */
+async function renderKeys() {
+  return `${pageHead('密钥管理', '平台共享密钥（未自配密钥的用户默认使用；仅管理员可改）')}
+    <div class="card">
+      <div id="keyList"></div>
+      <div style="margin-top:14px;display:flex;gap:8px;align-items:center">
+        <input id="keyNameInput" placeholder="名称（如 家用 / 服务器）" style="flex:1;min-width:120px;padding:8px 10px;border:1px solid var(--bp-border);border-radius:8px;font-size:14px" />
+        <input id="keyValueInput" type="password" placeholder="sk-..." style="flex:1.4;min-width:160px;padding:8px 10px;border:1px solid var(--bp-border);border-radius:8px;font-size:14px" />
+        <button class="btn btn-primary" id="addKeyBtn">添加</button>
+      </div>
+    </div>`
+}
+async function initKeys() {
+  async function load() {
+    const res = await fetch('/api/me/keys'); if (!res.ok) return
+    const { keys } = await res.json()
+    const list = $('keyList')
+    if (keys.length === 0) { list.innerHTML = '<div class="empty">暂无平台共享密钥。未自配密钥的用户将无法调用模型 —— 用户可在自己实例的「设置 → 我的密钥」里配置自己的密钥。</div>'; return }
+    list.innerHTML = keys.map((k) => `<div class="key-row">
+      <span class="dot ${k.enabled ? 'on' : 'off'}"></span><strong>${esc(k.name)}</strong><span style="flex:1"></span>
+      ${k.enabled ? '<span style="font-size:12px;color:#1a7f37">启用中</span>' : `<button class="btn-sm" data-sel="${k.id}">启用</button>`}
+      <button class="btn-sm danger" data-del="${k.id}">删除</button></div>`).join('')
+    list.querySelectorAll('[data-sel]').forEach((b) => b.onclick = async () => { await fetch(`/api/me/keys/${b.dataset.sel}/select`, { method: 'POST' }); await load() })
+    list.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { if (confirm('删除这个密钥？')) { await fetch(`/api/me/keys/${b.dataset.del}`, { method: 'DELETE' }); await load() } })
+  }
+  $('addKeyBtn').onclick = async () => {
+    const name = $('keyNameInput').value.trim(), apiKey = $('keyValueInput').value.trim()
+    if (!name || !apiKey) { toast('请填名称和密钥'); return }
+    const res = await postJson('/api/me/keys', { name, apiKey })
+    if (!res.ok) { toast('名称或密钥格式无效'); return }
+    $('keyNameInput').value = ''; $('keyValueInput').value = ''; await load()
+  }
+  await load()
+}
+
+/* ================= 用户管理（#/users） ================= */
+async function renderUsers() {
+  return `${pageHead('用户管理', '审批 / 禁用 / 删除用户')}
+    <div class="table-wrap"><table class="tbl">
+      <thead><tr><th>用户名</th><th>角色</th><th>注册时间</th><th class="act">操作</th></tr></thead>
+      <tbody id="usersTbody"></tbody></table></div>`
+}
+async function initUsers() {
+  async function load() {
+    const res = await fetch('/api/admin/users'); const { users } = await res.json()
+    const tbody = $('usersTbody'); tbody.innerHTML = ''
+    const badge = { admin: '管理员', pending: '待审核', active: '正常', disabled: '已禁用' }
+    for (const u of users) {
+      const actions = u.role === 'pending' ? `<button class="btn-sm" data-act="approve" data-id="${u.id}">通过</button>`
+        : u.role === 'active' ? `<button class="btn-sm danger" data-act="disable" data-id="${u.id}">禁用</button>`
+        : u.role === 'disabled' ? `<button class="btn-sm" data-act="enable" data-id="${u.id}">恢复</button>` : ''
+      const del = u.role !== 'admin' ? `<button class="btn-sm danger" data-act="del" data-id="${u.id}" data-name="${esc(u.username)}" title="删除用户">删除</button>` : ''
+      tbody.insertAdjacentHTML('beforeend', `<tr><td><strong>${esc(u.username)}</strong></td><td><span class="badge ${u.role}">${badge[u.role] || u.role}</span></td><td>${new Date(u.createdAt).toLocaleString()}</td><td class="act">${actions}${actions && del ? ' ' : ''}${del}</td></tr>`)
+    }
+    tbody.onclick = async (event) => {
+      const btn = event.target.closest('button[data-act]'); if (!btn) return
+      const { act, id } = btn.dataset
+      if (act === 'del') {
+        const name = prompt(`删除后不可恢复。输入用户名「${btn.dataset.name}」以确认：`)
+        if (name !== btn.dataset.name) { toast('用户名不匹配，已取消'); return }
+        const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+        if (res.ok) await load(); else toast('删除失败（admin 不可删除）')
+        return
+      }
+      const res = await fetch(`/api/admin/users/${id}/${act}`, { method: 'POST' })
+      if (res.ok) await load(); else toast('操作失败')
+    }
+  }
+  await load()
+}
+
+/* ================= 技能管理（#/skills） ================= */
+async function renderSkills() {
+  return `${pageHead('技能管理', '共享技能（所有用户可用 · 只读）')}
+    <div class="card">
+      <div class="upload-row"><input type="file" id="skillFile" accept=".zip" /><button class="btn btn-primary" id="skillUploadBtn">上传 / 替换</button></div>
+      <p class="hint">仅支持 .zip：包内单个顶层目录且含 SKILL.md（name 小写连字符 + description）。上传先做安全检测；同名确认后整体替换。</p>
+      <div class="table-wrap"><table class="tbl">
+        <thead><tr><th>技能名</th><th>说明</th><th class="num" style="text-align:right">文件</th><th class="num" style="text-align:right">大小</th><th>更新时间</th><th class="act">操作</th></tr></thead>
+        <tbody id="skillTbody"></tbody></table></div>
+    </div>`
+}
+async function initSkills() {
+  async function load() {
+    const tbody = $('skillTbody'); tbody.innerHTML = emptyRow(6, '加载中…')
+    try {
+      const { skills } = await (await fetch('/api/skills/shared')).json()
+      if (skills.length === 0) { tbody.innerHTML = emptyRow(6, '暂无共享技能 —— 上传 .zip 投放第一个'); return }
+      tbody.innerHTML = skills.map((s) => `<tr><td><strong>${esc(s.name)}</strong></td><td class="desc" title="${esc(s.description)}">${esc(s.description) || '—'}</td><td class="num">${s.files ?? '—'}</td><td class="num">${fmtSize(s.size)}</td><td>${when(s.mtimeMs)}</td><td class="act"><button class="btn-sm danger" data-del="${esc(s.name)}">删除</button></td></tr>`).join('')
+    } catch { tbody.innerHTML = emptyRow(6, '加载失败') }
+  }
+  $('skillUploadBtn').onclick = async () => {
+    const input = $('skillFile'); const file = input.files[0]
+    if (!file) { toast('请先选择 .zip 文件'); return }
+    if (!file.name.toLowerCase().endsWith('.zip')) { toast('仅支持 .zip 文件'); return }
+    if (file.size > 150 * 1024 * 1024) { toast('文件过大（>150MB）'); return }
+    const btn = $('skillUploadBtn'); btn.disabled = true; btn.textContent = '检测中…'
+    const base64 = await readAsBase64(file)
+    try {
+      const res = await postJson('/api/skills/shared', { file: base64, filename: file.name })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { toast('上传失败：' + (data.error ?? res.status)); return }
+      if (!data.conflict) { toast('✓ 已安装技能「' + data.skill.name + '」'); input.value = ''; await load(); return }
+      const ok = confirm('检测到同名技能「' + data.skill.name + '」已存在。确认整体替换？\n\n⚠️ 替换将删除旧技能全部文件，不可恢复。')
+      if (!ok) { toast('已取消'); return }
+      const r2 = await postJson('/api/skills/shared/apply', { stagedId: data.stagedId }); const d2 = await r2.json().catch(() => ({}))
+      if (!r2.ok) { toast('替换失败：' + (d2.error ?? r2.status)); return }
+      toast('✓ 已整体替换技能「' + d2.skill.name + '」'); input.value = ''; await load()
+    } catch { toast('上传失败：网络错误') } finally { btn.disabled = false; btn.textContent = '上传 / 替换' }
+  }
+  $('skillTbody').onclick = async (event) => {
+    const btn = event.target.closest('button[data-del]'); if (!btn) return
+    if (!confirm(`删除共享技能「${btn.dataset.del}」？所有用户将立即不可用。`)) return
+    const res = await fetch('/api/skills/shared/' + encodeURIComponent(btn.dataset.del), { method: 'DELETE' })
+    if (res.ok) { toast('✓ 已删除'); await load() } else toast('删除失败')
+  }
+  await load()
+}
+
+/* ================= 插件管理（#/plugins） ================= */
+async function renderPlugins() {
+  return `${pageHead('插件管理', '功能插件（系统外插件）的投放与管理')}
+    <div class="pg-tabs" id="pluginTabs">
+      <div class="pg-tab active" data-tab="official">官方推荐插件</div>
+      <div class="pg-tab" data-tab="manual">手动添加 / 管理<span class="pg-cnt" id="poolCnt">0</span></div>
+    </div>
+
+    <div id="pane-official">
+      <div class="card">
+        <div class="upload-row">
+          <input id="wlQ" placeholder="搜索插件名 / 描述 / npm 包名" style="flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--bp-border);border-radius:8px;font-size:14px" />
+          <select id="wlCat" style="padding:8px 10px;border:1px solid var(--bp-border);border-radius:8px;font-size:14px;background:#fff"><option value="">全部分类</option></select>
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--bp-dim);cursor:pointer"><input type="checkbox" id="wlOnlyImportable" checked />只看可导入</label>
+          <button class="btn" id="wlSearchBtn">搜索</button>
+          <button class="btn" id="wlRefreshBtn" title="绕过本地缓存，从官方站重新下载插件目录（约数秒；平时打开本页不会下载，直接读本地缓存）">重新拉取目录</button>
+        </div>
+        <p class="hint">来源：<b>awesome-dsh-plugin</b> 官方插件目录（dsh 官方社区精选，3400+ 插件，按下载量排序，取前 300 条）。<br />
+          导入只接受<b>预构建包</b>：官方 npm 包（registry tarball）或作者发布的 release 资产 —— 平台不执行任何第三方构建脚本。标记「需源码构建」的插件暂不支持一键导入（官方安装方式为 <code>github:owner/repo</code>），可自行构建后到「手动添加 / 管理」上传。</p>
+        <div style="margin-bottom:8px"><span style="color:var(--bp-dim);font-size:13px" id="wlInfo">加载中…</span></div>
+        <div class="table-wrap" style="max-height:calc(100vh - 520px)"><table class="tbl">
+          <thead><tr><th style="width:34px"></th><th>插件说明</th><th>分类</th><th>导入方式</th><th class="num" style="text-align:right">下载量</th><th class="act">详情</th></tr></thead>
+          <tbody id="wlTbody"></tbody></table></div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:12px">
+          <button class="btn btn-primary" id="wlImportBtn">导入到平台</button>
+          <span style="color:var(--bp-dim);font-size:13px" id="wlSelInfo">已选 0</span>
+        </div>
+        <div id="wlResult" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div id="pane-manual" hidden>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-h">投放插件<span class="sub">上传 .tgz 收录到平台</span></div>
+        <div class="upload-row"><input type="file" id="pluginFile" accept=".tgz" /><button class="btn btn-primary" id="pluginUploadBtn">上传 / 替换</button></div>
+        <p class="hint" style="margin:0">仅支持 .tgz：dsh 插件 bundle（含 package.json，name 为 npm 包名）。上传先做安全检测；同名按替换策略（旧包先删再落新包）。命中 P0 规则时默认拒绝，但会<b>逐条列出命中内容</b> —— 确认可信可显式声明信任后投放（会记入审计）。</p>
+        <div id="pluginScanBox"></div>
+      </div>
+      <div class="card">
+        <div class="card-h">已投放插件<span class="sub" id="poolHint">共 0 个 · 全部默认禁用</span></div>
+        <p class="hint"><b>投放 ≠ 生效。</b>这里只是把插件<b>收录到平台</b>，对任何用户都不生效；用户要真正用上，需在自己实例的「设置 → 功能插件」里勾选启用 —— 启用时平台才会把插件装进他的环境，重启实例后生效。</p>
+        <div class="table-wrap"><table class="tbl">
+          <thead><tr><th>插件名</th><th>版本</th><th>说明</th><th class="num" style="text-align:right">大小</th><th>投放时间</th><th class="act">操作</th></tr></thead>
+          <tbody id="pluginTbody"></tbody></table></div>
+      </div>
+    </div>`
+}
+async function initPlugins() {
+  const wlSelected = new Set()
+  const WL_KIND = {
+    npm: { label: 'npm 预构建', cls: 'active' },
+    tarball: { label: 'release 资产', cls: 'admin' },
+    source: { label: '需源码构建', cls: 'disabled' },
+  }
+  /** 切 tab：同时写 hash 后缀（#/plugins/<key>）以便深链；replaceState 不触发 hashchange。 */
+  function showTab(key) {
+    document.querySelectorAll('#pluginTabs .pg-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === key))
+    $('pane-official').hidden = key !== 'official'
+    $('pane-manual').hidden = key !== 'manual'
+    try { history.replaceState(null, '', '#/plugins/' + key) } catch { /* ignore */ }
+  }
+  async function load() {
+    const tbody = $('pluginTbody'); tbody.innerHTML = emptyRow(6, '加载中…')
+    try {
+      const { plugins } = await (await fetch('/api/plugins/business')).json()
+      if ($('poolCnt')) $('poolCnt').textContent = String(plugins.length)
+      if ($('poolHint')) $('poolHint').textContent = `共 ${plugins.length} 个 · 全部默认禁用`
+      if (plugins.length === 0) { tbody.innerHTML = emptyRow(6, '暂无已投放插件 —— 从「官方推荐插件」导入，或在上方上传 .tgz'); return }
+      tbody.innerHTML = plugins.map((p) => `<tr><td><strong>${esc(p.name)}</strong></td><td>${esc(p.version) || '—'}</td><td class="desc" title="${esc(p.description)}">${esc(p.description) || '—'}</td><td class="num">${fmtSize(p.fileSize)}</td><td>${when(p.updatedAt)}</td><td class="act"><button class="btn-sm danger" data-del="${esc(p.id)}">删除</button></td></tr>`).join('')
+    } catch { tbody.innerHTML = emptyRow(6, '加载失败') }
+  }
+  /** 相对时间（目录缓存的上次更新时间展示用）。 */
+  function relTime(ts) {
+    if (!ts || typeof ts !== 'number') return '未知'
+    const s = Math.max(0, Math.floor((Date.now() - ts) / 1000))
+    if (s < 60) return '刚刚'
+    if (s < 3600) return Math.floor(s / 60) + ' 分钟前'
+    if (s < 86400) return Math.floor(s / 3600) + ' 小时前'
+    return Math.floor(s / 86400) + ' 天前'
+  }
+  async function loadWhitelist() {
+    const tbody = $('wlTbody'); tbody.innerHTML = emptyRow(7, '加载目录中…（首次会从官方站下载一次，之后读本地缓存）')
+    const q = encodeURIComponent($('wlQ').value.trim())
+    const cat = encodeURIComponent($('wlCat').value)
+    const only = $('wlOnlyImportable').checked ? '1' : ''
+    try {
+      const r = await fetch(`/api/plugins/whitelist?q=${q}&category=${cat}&onlyImportable=${only}`)
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) { tbody.innerHTML = emptyRow(7, '拉取失败：' + (d.error ?? r.status)); return }
+      const sel = $('wlCat')
+      if (sel.dataset.filled !== '1') { for (const c of (d.categories || [])) sel.insertAdjacentHTML('beforeend', `<option value="${esc(c.id)}">${esc(c.label)}（${c.count}）</option>`); sel.dataset.filled = '1' }
+      $('wlInfo').textContent = `清单 ${d.total} 条 ｜ 可导入 ${d.importable} 条 ｜ 匹配 ${d.count} 条 ｜ 显示 ${(d.plugins || []).length} 条 ｜ 目录缓存更新于 ${relTime(d.fetchedAt)}（6 小时内直接复用，不联网）` + (d.stale ? ' ｜ ⚠ 官方站暂不可达，正在使用本地缓存' : '')
+      if (!d.plugins || d.plugins.length === 0) { tbody.innerHTML = emptyRow(7, '无匹配'); return }
+      tbody.innerHTML = d.plugins.map((p) => {
+        const k = WL_KIND[p.importKind] || WL_KIND.source
+        const dis = p.importKind === 'source'
+        // 主视觉 = 中文说明（一眼知道这插件干什么）；插件名 / npm 包名 / 版本退为副行小字。
+        const desc = (p.description || '').trim()
+        const primary = desc !== '' ? desc : p.name
+        const meta = [
+          p.name,
+          p.npm ? p.npm + (p.version ? ' @ ' + p.version : '') : '',
+          (p.stars || 0) > 0 ? '★ ' + p.stars : '',
+        ].filter(Boolean).join(' · ')
+        return `<tr${dis ? ' style="opacity:.55"' : ''}>
+        <td><input type="checkbox" data-wl="${esc(p.id)}" ${dis ? 'disabled' : ''} ${wlSelected.has(p.id) ? 'checked' : ''} /></td>
+        <td class="wl-cell">
+          <div class="wl-desc${desc === '' ? ' fallback' : ''}" title="${esc(primary)}">${esc(primary)}</div>
+          <div class="wl-meta" title="${esc(meta)}">${esc(meta)}</div>
+        </td>
+        <td><span class="wl-cat">${esc(p.categoryLabel || p.category) || '—'}</span></td>
+        <td><span class="badge ${k.cls}">${k.label}</span></td>
+        <td class="num">${p.downloads || 0}</td>
+        <td class="act">${p.page ? `<a class="btn-sm wl-link" href="${esc(p.page)}" target="_blank" rel="noreferrer noopener" title="打开官方详情页（完整介绍 / 截图 / 评论）">详情 ↗</a>` : '—'}</td></tr>`
+      }).join('')
+      tbody.querySelectorAll('input[data-wl]').forEach((cb) => { cb.onchange = () => { if (cb.checked) wlSelected.add(cb.dataset.wl); else wlSelected.delete(cb.dataset.wl); $('wlSelInfo').textContent = `已选 ${wlSelected.size}` } })
+    } catch { tbody.innerHTML = emptyRow(7, '拉取失败') }
+  }
+  document.querySelectorAll('#pluginTabs .pg-tab').forEach((t) => { t.onclick = () => showTab(t.dataset.tab) })
+  $('wlSearchBtn').onclick = () => loadWhitelist()
+  $('wlQ').onkeydown = (e) => { if (e.key === 'Enter') loadWhitelist() }
+  $('wlCat').onchange = () => loadWhitelist()
+  $('wlOnlyImportable').onchange = () => loadWhitelist()
+  $('wlRefreshBtn').onclick = async () => { const b = $('wlRefreshBtn'); b.disabled = true; b.textContent = '正在重新拉取…'; try { await postJson('/api/plugins/whitelist/refresh', {}); wlSelected.clear(); $('wlSelInfo').textContent = '已选 0'; await loadWhitelist(); toast('✓ 目录已重新拉取（缓存已更新）') } catch { toast('重新拉取失败（网络或官方站不可达）') } finally { b.disabled = false; b.textContent = '重新拉取目录' } }
+  $('wlImportBtn').onclick = async () => {
+    const names = [...wlSelected]
+    if (names.length === 0) { toast('请先勾选插件'); return }
+    if (names.length > 20) { toast('单次最多导入 20 个'); return }
+    if (!confirm(`将 ${names.length} 个插件投放（收录）到平台？\n\n投放后默认禁用，对用户不生效；用户需在实例「设置 → 功能插件」里自行启用。`)) return
+    const btn = $('wlImportBtn'); btn.disabled = true; btn.textContent = '导入中…'
+    $('wlResult').innerHTML = ''
+    try {
+      const r = await postJson('/api/plugins/whitelist/import', { names })
+      const d = await r.json().catch(() => ({}))
+      const results = d.results || []
+      const ok = results.filter((x) => x.ok)
+      const fail = results.filter((x) => !x.ok)
+      toast(`投放完成：成功 ${ok.length} / ${names.length}` + (fail.length ? `，失败 ${fail.length}` : ''))
+      if (ok.length > 0 && fail.length === 0) {
+        $('wlResult').innerHTML = `<div style="border:1px solid var(--bp-border);border-left:3px solid #1a7f37;border-radius:8px;padding:12px 14px;background:#f4fbf7">
+          <div style="font-size:13px;color:var(--bp-dim);line-height:1.6">✓ 已投放 <b style="color:var(--bp-text)">${ok.length}</b> 个插件到平台（默认禁用，用户未启用前不生效）。切到 <b style="color:var(--bp-text)">「手动添加 / 管理」</b> 可查看或删除。</div></div>`
+      }
+      if (fail.length) {
+        $('wlResult').innerHTML = `<div style="border:1px solid var(--bp-border);border-left:3px solid var(--bp-danger);border-radius:8px;padding:12px 14px;background:#fff8f6">
+          <div style="font-size:13px;font-weight:600;color:var(--bp-danger);margin-bottom:6px">失败 ${fail.length} 个</div>
+          ${fail.map((x) => `<div style="font-size:13px;color:var(--bp-dim);margin:4px 0;line-height:1.6"><b style="color:var(--bp-text)">${esc(x.id)}</b>：${esc(x.error)}</div>`).join('')}
+        </div>`
+      }
+      for (const x of results) if (x.ok) wlSelected.delete(x.id)
+      $('wlSelInfo').textContent = `已选 ${wlSelected.size}`
+      await loadWhitelist(); await load()
+    } catch { toast('投放失败：网络错误') } finally { btn.disabled = false; btn.textContent = '导入到平台' }
+  }
+  /**
+   * 上传投放。`trust=false` 走默认路径（命中 P0 即被拒绝并回显详情）；
+   * `trust=true` 表示 admin 已逐条确认并显式声明信任 —— 平台放行并写审计。
+   */
+  async function doUpload(file, trust) {
+    const input = $('pluginFile'); const btn = $('pluginUploadBtn')
+    const base64 = await readAsBase64(file)
+    btn.disabled = true; btn.textContent = trust ? '投放中…' : '检测中…'
+    $('pluginScanBox').innerHTML = ''
+    try {
+      const payload = { file: base64, filename: file.name }
+      if (trust) payload.trust = { confirmed: true, reason: ($('trustReason') && $('trustReason').value.trim()) || '' }
+      const res = await postJson('/api/plugins/business', payload)
+      const data = await res.json().catch(() => ({}))
+      if (res.status === 409 && (data.error === 'scan_blocked' || data.error === 'compat_incompatible')) { renderScanBlocked(file, data); return }
+      if (!res.ok) { toast('上传失败：' + (data.error ?? res.status)); return }
+      toast((data.replaced ? '✓ 已替换' : '✓ 已投放') + '功能插件「' + data.plugin.name + '」' + (data.trustedOverride ? '（已记录信任声明）' : ''))
+      input.value = ''; await load()
+    } catch { toast('上传失败：网络错误') } finally { btn.disabled = false; btn.textContent = '上传 / 替换' }
+  }
+  /**
+   * 渲染拒绝详情 + 显式信任入口。
+   * 两类拒绝共用（信息给足，让 admin 真的看到自己信任了什么）：
+   *   · `scan_blocked`        —— 安全检测命中 P0
+   *   · `compat_incompatible` —— 与平台 dsh 版本不兼容
+   */
+  function renderScanBlocked(file, data) {
+    const isCompat = data.error === 'compat_incompatible'
+    const list = isCompat ? ((data.compat && data.compat.findings) || []) : (data.blocked || [])
+    const warn = (data.warnings || []).length
+    const rows = list.map((b) => `<li style="margin:3px 0"><code style="font-size:12px">${esc(isCompat ? (b.pkg + (b.file ? ' ← ' + b.file : '')) : b.file)}</code> — ${esc(isCompat ? b.detail : b.why)}</li>`).join('')
+    const title = isCompat
+      ? `与当前平台 dsh 版本不兼容，已拒绝投放（共 ${list.length} 条依据）`
+      : `安全检测命中 P0 规则，已拒绝投放（共 ${list.length} 处）`
+    $('pluginScanBox').innerHTML = `<div style="border:1px solid var(--bp-border);border-left:3px solid var(--bp-danger);border-radius:8px;padding:12px 14px;background:#fff8f6;margin-top:12px">
+      <div style="font-size:13px;font-weight:600;color:var(--bp-danger);margin-bottom:6px">${title}</div>
+      <div style="font-size:13px;color:var(--bp-dim);line-height:1.7;margin-bottom:8px">${esc(data.message || '')}</div>
+      <ul style="margin:0 0 10px 18px;padding:0;font-size:13px;color:var(--bp-text)">${rows}</ul>
+      ${warn ? `<div style="font-size:12px;color:var(--bp-dim);margin-bottom:8px">另有 ${warn} 条 P1 告警（不阻断）</div>` : ''}
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="trustReason" placeholder="信任理由（可选，会记入审计）" style="flex:1;min-width:200px;padding:7px 10px;border:1px solid var(--bp-border);border-radius:8px;font-size:13px" />
+        <button class="btn btn-primary" id="trustConfirmBtn">我已逐条确认，信任并投放</button>
+      </div>
+      <div style="font-size:12px;color:var(--bp-dim);margin-top:6px;line-height:1.6">⚠ 只在确认命中确属误报或风险可控时继续。平台会记录「谁 / 何时 / 命中什么 / 理由」。</div>
+    </div>`
+    $('trustConfirmBtn').onclick = () => doUpload(file, true)
+  }
+  $('pluginUploadBtn').onclick = async () => {
+    const input = $('pluginFile'); const file = input.files[0]
+    if (!file) { toast('请先选择 .tgz 文件'); return }
+    if (!file.name.toLowerCase().endsWith('.tgz')) { toast('仅支持 .tgz 文件'); return }
+    if (file.size > 150 * 1024 * 1024) { toast('文件过大（>150MB）'); return }
+    await doUpload(file, false)
+  }
+  $('pluginTbody').onclick = async (event) => {
+    const btn = event.target.closest('button[data-del]'); if (!btn) return
+    if (!confirm(`删除已投放插件「${btn.dataset.del}」？\n\n将从平台移除；已启用它的用户实例会失去该插件。`)) return
+    const res = await fetch('/api/plugins/business/' + encodeURIComponent(btn.dataset.del), { method: 'DELETE' })
+    if (res.ok) { toast('✓ 已删除'); await load() } else toast('删除失败')
+  }
+  // 初始 tab：读 hash 后缀（#/plugins/manual），默认「官方推荐插件」
+  const seg = (location.hash.replace(/^#/, '').split('/').filter(Boolean))[1]
+  showTab(seg === 'manual' ? 'manual' : 'official')
+  await load(); await loadWhitelist()
+}
+/* ================= 运行环境（#/runtime） ================= */
+async function renderRuntime() {
+  return `${pageHead('运行环境', '实例共享的运行时与工具（服务器装一次，全部用户共享）')}
+    <div class="card" id="rtWrap"><div class="empty">加载中…</div></div>`
+}
+async function initRuntime() {
+  const wrap = document.getElementById('rtWrap')
+  try {
+    const r = await (await fetch('/api/admin/runtime')).json()
+    const mb = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1024).toFixed(0) + ' KB')
+    const cell = 'padding:8px 10px;border-bottom:1px solid var(--color-border-tertiary,#eee);vertical-align:top'
+    const mon = 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace'
+    const rows = r.items.map((i) => `<tr>
+      <td style="${cell}"><b>${esc(i.name)}</b><div style="font-size:12px;color:var(--bp-dim)">${esc(i.group)} · ${esc(i.kind)}</div></td>
+      <td style="${cell};${mon};font-size:12px">${esc(String(i.version).slice(0, 60))}</td>
+      <td style="${cell};font-size:12px">${esc(i.source)}</td>
+      <td style="${cell};${mon};font-size:12px">${esc(i.script)}</td>
+      <td style="${cell};font-size:12px">${i.removable ? '可卸载' : '平台必备'}</td>
+    </tr>`).join('')
+    const drift = r.drift && r.drift.length
+      ? `<div style="margin:10px 0;padding:10px 12px;border-radius:8px;background:#FCEBEB;color:#501313;font-size:13px">
+           ⚠️ 检测到版本漂移（与基线不一致）：${r.drift.map(esc).join('；')}<br>
+           若是有意升级，请跑 <code>${esc(r.baselineScript)}</code> 刷新基线。</div>`
+      : `<div style="margin:10px 0;padding:10px 12px;border-radius:8px;background:#E1F5EE;color:#04342C;font-size:13px">
+           ✅ 版本与基线一致${r.baseline && r.baseline.acceptedAt ? '（基线时间 ' + esc(String(r.baseline.acceptedAt).slice(0, 19)) + '）' : ''}</div>`
+    wrap.innerHTML = `
+      <div style="font-size:13px;color:var(--bp-dim);margin-bottom:12px">${esc(r.note)}</div>
+      ${drift}
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr>
+          <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--color-border-secondary,#ddd)">名称</th>
+          <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--color-border-secondary,#ddd)">版本</th>
+          <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--color-border-secondary,#ddd)">来源</th>
+          <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--color-border-secondary,#ddd)">安装/升级脚本</th>
+          <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--color-border-secondary,#ddd)">可卸载</th>
+        </tr></thead><tbody>${rows}</tbody>
+      </table>
+      <div style="margin-top:16px;font-size:13px;line-height:1.9">
+        <b>目录</b>：<code>${esc(r.runtimeDir.path)}</code>　
+        <b>体积</b>：${mb(r.runtimeDir.bytes)}　
+        <b>最近变更</b>：${esc(String(r.runtimeDir.installedAt).slice(0, 19))}
+      </div>
+      <details style="margin-top:12px;font-size:13px">
+        <summary style="cursor:pointer">升级 / 卸载 / 迁移怎么做？</summary>
+        <div style="margin-top:8px;line-height:1.9">
+          · <b>升级</b>：改脚本里的固定版本号 → 重跑对应安装脚本（幂等 + 官方 sha256 校验）→
+            再跑 <code>${esc(r.baselineScript)}</code> 刷新版本基线，否则页面会一直提示漂移。<br>
+          · <b>卸载</b>：删 <code>/usr/local/bin/&lt;名字&gt;</code> 软链即可（"平台必备"项请勿删）；<br>
+          · <b>迁移</b>：整个 <code>${esc(r.runtimeDir.path)}</code> 就是一个打包单元 ——
+            <code>tar czf dsh-runtime.tar.gz -C /usr/local dsh-runtime</code>，
+            目标机解压回原位后重跑两个安装脚本（只重建软链）。<br>
+          · 实例内 <code>/usr</code> 只读 → 用户<b>无法</b>自行安装或修改，这里的变更对全部用户立即生效。
+        </div>
+      </details>
+      <details style="margin-top:12px;font-size:13px">
+        <summary style="cursor:pointer">安装清单原文（SHARED-TOOLS.md）</summary>
+        <pre style="margin-top:8px;white-space:pre-wrap;font-size:12px">${esc(r.manifest)}</pre>
+      </details>`
+  } catch (err) {
+    wrap.innerHTML = '<div class="empty">加载失败：' + esc(err.message) + '</div>'
+  }
+}
+/* ================= 路由分发 ================= */
+const PAGES = { runtime: [renderRuntime, initRuntime], files: [renderFiles, initFiles], keys: [renderKeys, initKeys], users: [renderUsers, initUsers], skills: [renderSkills, initSkills], plugins: [renderPlugins, initPlugins] }
+let isAdmin = false
+async function router() {
+  const name = parseHash(); const view = $('view')
+  if (!name || !PAGES[name]) {
+    updateCrumbs('')
+    view.className = ''
+    view.innerHTML = renderHome()
+    view.querySelectorAll('.nav-card').forEach((c) => c.addEventListener('click', () => { location.hash = c.dataset.hash }))
+    return
+  }
+  updateCrumbs(name)
+  view.className = 'page-' + name
+  const [render, init] = PAGES[name]
+  view.innerHTML = await render()
+  const back = view.querySelector('[data-back]')
+  if (back) back.addEventListener('click', () => { location.hash = '#/' })
+  try { await init() } catch (err) { console.error('[portal]', name, err); view.innerHTML = '<div class="empty">渲染失败：' + esc(err.message) + '</div>' }
+}
+window.addEventListener('hashchange', router)
+$('btnHome').addEventListener('click', () => { location.hash = '#/' })
+$('logoutBtn').addEventListener('click', async () => { await fetch('/api/auth/logout', { method: 'POST' }); location.href = '/login.html' })
+
+/* ================= init ================= */
+;(async function init() {
+  const user = await me()
+  if (!user) { location.href = '/login.html'; return }
+  if (user.role !== 'admin') {
+    // 普通用户不进门户，直接进入实例会话
+    try {
+      const res = await fetch('/api/dsh/enter', { method: 'POST' })
+      const body = await res.json().catch(() => ({}))
+      if (res.ok && body.kind === 'session' && body.url) { location.href = body.url; return }
+    } catch {}
+  }
+  isAdmin = user.role === 'admin'
+  $('who').textContent = user.username + (isAdmin ? '（管理员）' : '')
+  await router()
+})()
+</script>
+</body>
+</html>

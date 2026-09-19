@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 830" width="1180" height="830" role="img" aria-label="DSH 用户平台架构图">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+    <style>
+      .t    { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
+      .h1   { font-size: 27px; font-weight: 700; }
+      .sub  { font-size: 14px; fill: #57606a; }
+      .sec  { font-size: 15px; font-weight: 600; }
+      .lbl  { font-size: 13px; fill: #57606a; }
+      .chip { font-size: 13.5px; }
+      .box  { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.5; }
+      .ln   { stroke: #57606a; stroke-width: 1.8; fill: none; marker-end: url(#ar); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="830" rx="14" fill="#f6f8fa"/>
+
+  <g fill="#1f2328">
+    <text class="t h1" x="40" y="50">DSH 用户平台 · 架构</text>
+    <text class="t sub" x="40" y="76">公网侧只做「托管」：账号、路由、隔离、护栏、插件与技能、自愈 —— 不修改、不内嵌 DeepSeek Harness</text>
+
+    <!-- 浏览器 -->
+    <rect class="box" x="40" y="100" width="1100" height="62" rx="10"/>
+    <text class="t sec" x="64" y="137">浏览器</text>
+    <text class="t lbl" x="150" y="137">桌面 / 手机 —— 经主域或每用户子域访问（DSH 的 SPA 需要独占 host）</text>
+
+    <path class="ln" d="M 590 162 L 590 200"/>
+    <text class="t lbl" x="604" y="186">HTTPS（DNS-01 通配证书）</text>
+
+    <!-- nginx -->
+    <rect class="box" x="40" y="204" width="1100" height="62" rx="10"/>
+    <text class="t sec" x="64" y="241">nginx</text>
+    <text class="t lbl" x="150" y="241">TLS 终结 · 主域 + 每用户通配子域 · 自定义域名 · 支持 WebSocket upgrade</text>
+
+    <path class="ln" d="M 590 266 L 590 304"/>
+    <text class="t lbl" x="604" y="290">按 Host / 子路径路由</text>
+
+    <!-- 控制面 -->
+    <rect class="box" x="40" y="308" width="1100" height="152" rx="10" stroke="#0969da" stroke-width="2"/>
+    <text class="t sec" x="64" y="336" fill="#0969da">控制面</text>
+    <text class="t lbl" x="140" y="336">单一 Fastify 进程 —— 只绑回环端口，不直接暴露</text>
+
+    <rect x="64" y="352" width="330" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="378">认证 / 注册审核 / 会话</text>
+    <rect x="410" y="352" width="330" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="426" y="378">路由与反代 · 网页桌面 · 文件服务</text>
+    <rect x="756" y="352" width="360" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="772" y="378">管理台 · 用户与审计</text>
+
+    <rect x="64" y="404" width="330" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="430">插件与技能：预检 / 启停 / 回滚</text>
+    <rect x="410" y="404" width="330" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="426" y="430">模型设置：共享 key / 厂家目录</text>
+    <rect x="756" y="404" width="360" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="772" y="430">崩溃自愈 · 空闲回收 · 备份</text>
+
+    <path class="ln" d="M 590 460 L 590 502"/>
+    <text class="t lbl" x="604" y="486">按用户拉起子进程 · setuid 降权到该用户 uid</text>
+
+    <!-- 实例 -->
+    <rect class="box" x="40" y="506" width="348" height="106" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="64" y="534" fill="#1a7f37">实例 · 用户 A</text>
+    <text class="t lbl" x="64" y="558">uid 100001</text>
+    <text class="t lbl" x="64" y="580">只绑 127.0.0.1 的动态端口</text>
+    <text class="t lbl" x="64" y="600">独立 home / workspace / 会话</text>
+
+    <rect class="box" x="416" y="506" width="348" height="106" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="440" y="534" fill="#1a7f37">实例 · 用户 B</text>
+    <text class="t lbl" x="440" y="558">uid 100002</text>
+    <text class="t lbl" x="440" y="580">只绑 127.0.0.1 的动态端口</text>
+    <text class="t lbl" x="440" y="600">独立 home / workspace / 会话</text>
+
+    <rect class="box" x="792" y="506" width="348" height="106" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="816" y="534" fill="#1a7f37">实例 · 用户 C</text>
+    <text class="t lbl" x="816" y="558">uid 100003</text>
+    <text class="t lbl" x="816" y="580">只绑 127.0.0.1 的动态端口</text>
+    <text class="t lbl" x="816" y="600">独立 home / workspace / 会话</text>
+
+    <path class="ln" d="M 590 612 L 590 652"/>
+
+    <!-- 数据面 -->
+    <rect class="box" x="40" y="656" width="1100" height="88" rx="10"/>
+    <text class="t sec" x="64" y="684">数据面</text>
+    <text class="t lbl" x="64" y="708">控制面库（SQLite / Postgres）· 每用户 home / workspace / 回收站 · 共享运行时（只读挂载的 Python / jq / ripgrep / ffmpeg）</text>
+    <text class="t lbl" x="64" y="730">密钥：AES-256-GCM 加密后落库，主密钥来自环境变量或 &lt;dataRoot&gt;/secret.key（0600）</text>
+
+    <!-- 跨层机制 -->
+    <rect x="40" y="756" width="1100" height="58" rx="10" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+    <text class="t chip" x="64" y="779">跨层机制 —— 出网护栏：屏蔽云元数据端点 · 阻断实例反向访问宿主自身</text>
+    <text class="t chip" x="64" y="800">端口守卫：按客户端 uid 只放行编排器　·　崩溃自愈：指数退避 + 熔断冷却　·　空闲回收：常驻上限 + TTL</text>
+  </g>
+</svg>

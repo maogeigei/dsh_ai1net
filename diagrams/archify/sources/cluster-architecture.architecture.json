@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Cluster mode",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Primary request path",
+        "focus": [
+          "user",
+          "nginx",
+          "manager",
+          "worker",
+          "instA"
+        ],
+        "note": "The same browser request, with the instance now living on another host."
+      },
+      {
+        "id": "ownership",
+        "label": "Ownership lease",
+        "focus": [
+          "manager",
+          "pg"
+        ],
+        "note": "Which host owns a user's instance is settled by an atomic claim, not by an in-process map."
+      },
+      {
+        "id": "unchanged",
+        "label": "What does not change",
+        "focus": [
+          "worker",
+          "instA",
+          "instB"
+        ],
+        "note": "Isolation, quotas, crash policy and plugin probes behave exactly as they do on one machine."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "Browser",
+      "sublabel": "the user's own machine",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "nginx",
+      "type": "backend",
+      "label": "nginx",
+      "sublabel": "TLS termination",
+      "pos": [
+        205,
+        300
+      ],
+      "size": [
+        135,
+        60
+      ],
+      "tag": "wildcard certificate"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "shared state",
+      "pos": [
+        405,
+        120
+      ],
+      "size": [
+        180,
+        66
+      ],
+      "tag": "worker registry · ownership"
+    },
+    {
+      "id": "manager",
+      "type": "backend",
+      "label": "Manager node",
+      "sublabel": "control plane",
+      "pos": [
+        405,
+        296
+      ],
+      "size": [
+        180,
+        84
+      ],
+      "tag": "auth · approval · lease"
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Worker node",
+      "sublabel": "inbound agent",
+      "pos": [
+        672,
+        296
+      ],
+      "size": [
+        180,
+        84
+      ],
+      "tag": "token-authenticated"
+    },
+    {
+      "id": "instA",
+      "type": "backend",
+      "label": "Instance · user A",
+      "sublabel": "uid 100001",
+      "pos": [
+        560,
+        452
+      ],
+      "size": [
+        180,
+        62
+      ],
+      "tag": "loopback port only"
+    },
+    {
+      "id": "instB",
+      "type": "backend",
+      "label": "Instance · user B",
+      "sublabel": "uid 100002",
+      "pos": [
+        770,
+        452
+      ],
+      "size": [
+        180,
+        62
+      ],
+      "tag": "loopback port only"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Manager host",
+      "wraps": [
+        "nginx",
+        "manager",
+        "pg"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Worker host",
+      "wraps": [
+        "worker",
+        "instA",
+        "instB"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "user-to-nginx",
+      "from": "user",
+      "to": "nginx",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "nginx-to-manager",
+      "from": "nginx",
+      "to": "manager",
+      "label": "route by Host",
+      "labelAt": [
+        352,
+        384
+      ]
+    },
+    {
+      "id": "manager-to-pg",
+      "from": "manager",
+      "to": "pg",
+      "label": "claim ownership",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [
+        446,
+        232
+      ]
+    },
+    {
+      "id": "manager-to-worker",
+      "from": "manager",
+      "to": "worker",
+      "label": "drives",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "worker-to-instA",
+      "from": "worker",
+      "to": "instA",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "worker-to-instB",
+      "from": "worker",
+      "to": "instB",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Ownership",
+      "items": [
+        "Which host owns a user's instance is settled by an atomic claim in a shared database",
+        "The lease carries a time to live that is renewed periodically, and every write is stamped with an epoch so the owner is never ambiguous",
+        "Single-machine mode gets the same guarantee for free from an in-process map"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "What the user gets",
+      "items": [
+        "Nothing changes from the user's side: same request path, same conversation, same files",
+        "Instances still bind loopback ports only",
+        "The worker exposes a token-authenticated surface for instance lifecycle and file operations"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "One baseline",
+      "items": [
+        "Every worker uses the same absolute data root, so an instance's paths mean the same thing on any host",
+        "The worker reuses the single-machine spawner and the same path-safety code",
+        "Isolation, memory quotas, crash backoff and plugin probes behave identically"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Architecture",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Primary request path",
+        "focus": [
+          "user",
+          "nginx",
+          "control",
+          "instA"
+        ],
+        "note": "From the browser to one user's own harness process."
+      },
+      {
+        "id": "isolation",
+        "label": "Per-user isolation",
+        "focus": [
+          "control",
+          "instA",
+          "instB",
+          "guard"
+        ],
+        "note": "One operating-system account, one process, one loopback port, one outbound policy per user."
+      },
+      {
+        "id": "governance",
+        "label": "Accounts and governance",
+        "focus": [
+          "admin",
+          "control",
+          "store",
+          "pool"
+        ],
+        "note": "Nothing reaches a user that an administrator has not admitted."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "admin",
+      "type": "external",
+      "label": "Administrator",
+      "sublabel": "approves accounts",
+      "pos": [
+        40,
+        120
+      ],
+      "size": [
+        135,
+        60
+      ]
+    },
+    {
+      "id": "user",
+      "type": "external",
+      "label": "Browser",
+      "sublabel": "the user's own machine",
+      "pos": [
+        40,
+        320
+      ],
+      "size": [
+        135,
+        60
+      ]
+    },
+    {
+      "id": "nginx",
+      "type": "backend",
+      "label": "nginx",
+      "sublabel": "TLS termination",
+      "pos": [
+        218,
+        320
+      ],
+      "size": [
+        135,
+        60
+      ],
+      "tag": "DNS-01 wildcard"
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "SQLite",
+      "sublabel": "accounts and state",
+      "pos": [
+        400,
+        120
+      ],
+      "size": [
+        165,
+        60
+      ]
+    },
+    {
+      "id": "control",
+      "type": "backend",
+      "label": "Control plane",
+      "sublabel": "single Fastify process",
+      "pos": [
+        400,
+        308
+      ],
+      "size": [
+        175,
+        84
+      ],
+      "tag": "auth · approval · proxy · admin"
+    },
+    {
+      "id": "pool",
+      "type": "database",
+      "label": "Plugin and skill pool",
+      "sublabel": "admin-managed",
+      "pos": [
+        400,
+        480
+      ],
+      "size": [
+        165,
+        60
+      ],
+      "tag": "pre-checked"
+    },
+    {
+      "id": "guard",
+      "type": "security",
+      "label": "Port and egress guard",
+      "sublabel": "loopback bind · allow-list",
+      "pos": [
+        645,
+        118
+      ],
+      "size": [
+        175,
+        60
+      ]
+    },
+    {
+      "id": "instA",
+      "type": "backend",
+      "label": "Instance · user A",
+      "sublabel": "uid 100001",
+      "pos": [
+        645,
+        240
+      ],
+      "size": [
+        175,
+        62
+      ],
+      "tag": "loopback port only"
+    },
+    {
+      "id": "instB",
+      "type": "backend",
+      "label": "Instance · user B",
+      "sublabel": "uid 100002",
+      "pos": [
+        645,
+        345
+      ],
+      "size": [
+        175,
+        62
+      ],
+      "tag": "loopback port only"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Per-user isolation",
+      "wraps": [
+        "instA",
+        "instB"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Host",
+      "wraps": [
+        "nginx",
+        "control",
+        "store",
+        "pool",
+        "guard",
+        "instA",
+        "instB"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "user-to-nginx",
+      "from": "user",
+      "to": "nginx",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "admin-to-control",
+      "from": "admin",
+      "to": "control",
+      "label": "manage"
+    },
+    {
+      "id": "nginx-to-control",
+      "from": "nginx",
+      "to": "control",
+      "label": "route by Host",
+      "labelAt": [
+        352,
+        402
+      ]
+    },
+    {
+      "id": "control-to-store",
+      "from": "control",
+      "to": "store",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "control-to-pool",
+      "from": "control",
+      "to": "pool",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "control-to-instA",
+      "from": "control",
+      "to": "instA",
+      "label": "spawn",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "control-to-instB",
+      "from": "control",
+      "to": "instB",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "guard-to-instA",
+      "from": "guard",
+      "to": "instA",
+      "label": "pins and filters",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        732,
+        212
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Request path",
+      "items": [
+        "nginx terminates TLS; the control plane routes by Host or /u/<userId>/dsh/*",
+        "Each instance binds a loopback port and is never exposed directly"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Per-user isolation",
+      "items": [
+        "One operating-system account, one harness process and one private file root per user",
+        "A path fence confines the instance; the port and egress guards pin and filter it"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Base, governance, self-healing",
+      "items": [
+        "The harness is used unmodified — one child process per user",
+        "Accounts need administrator approval, and plugins come from a managed pool",
+        "A crash is repaired then restarted; crashes back off, and idle instances are reaped"
+      ]
+    }
+  ]
+}

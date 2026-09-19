@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 830" width="1180" height="830" role="img" aria-label="DSH Users Platform architecture">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+    <style>
+      .t    { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+      .h1   { font-size: 27px; font-weight: 700; }
+      .sub  { font-size: 14px; fill: #57606a; }
+      .sec  { font-size: 15px; font-weight: 600; }
+      .lbl  { font-size: 13px; fill: #57606a; }
+      .chip { font-size: 13.5px; }
+      .box  { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.5; }
+      .ln   { stroke: #57606a; stroke-width: 1.8; fill: none; marker-end: url(#ar); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="830" rx="14" fill="#f6f8fa"/>
+
+  <g fill="#1f2328">
+    <text class="t h1" x="40" y="50">DSH Users Platform · Architecture</text>
+    <text class="t sub" x="40" y="76">The public side only hosts: accounts, routing, isolation, guards, plugins &amp; skills, self-healing — it never modifies or embeds DeepSeek Harness</text>
+
+    <!-- browser -->
+    <rect class="box" x="40" y="100" width="1100" height="62" rx="10"/>
+    <text class="t sec" x="64" y="137">Browser</text>
+    <text class="t lbl" x="162" y="137">desktop / mobile — via the main domain or a per-user subdomain (DSH's SPA needs an exclusive host)</text>
+
+    <path class="ln" d="M 590 162 L 590 200"/>
+    <text class="t lbl" x="604" y="186">HTTPS (DNS-01 wildcard certificate)</text>
+
+    <!-- nginx -->
+    <rect class="box" x="40" y="204" width="1100" height="62" rx="10"/>
+    <text class="t sec" x="64" y="241">nginx</text>
+    <text class="t lbl" x="140" y="241">TLS termination · main domain + per-user wildcard subdomains · custom domains · WebSocket upgrade</text>
+
+    <path class="ln" d="M 590 266 L 590 304"/>
+    <text class="t lbl" x="604" y="290">routed by Host / sub-path</text>
+
+    <!-- control plane -->
+    <rect class="box" x="40" y="308" width="1100" height="152" rx="10" stroke="#0969da" stroke-width="2"/>
+    <text class="t sec" x="64" y="336" fill="#0969da">Control plane</text>
+    <text class="t lbl" x="192" y="336">a single Fastify process — binds loopback only, never exposed directly</text>
+
+    <rect x="64" y="352" width="330" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="378">auth / approval / sessions</text>
+    <rect x="410" y="352" width="330" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="426" y="378">routing &amp; proxy · desktop · files</text>
+    <rect x="756" y="352" width="360" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="772" y="378">admin console · users &amp; audit</text>
+
+    <rect x="64" y="404" width="330" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="430">plugins &amp; skills: check / enable / rollback</text>
+    <rect x="410" y="404" width="330" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="426" y="430">model settings: shared key / providers</text>
+    <rect x="756" y="404" width="360" height="42" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="772" y="430">crash self-healing · idle reaping · backup</text>
+
+    <path class="ln" d="M 590 460 L 590 502"/>
+    <text class="t lbl" x="604" y="486">one child process per user · setuid de-privileged to that user's uid</text>
+
+    <!-- instances -->
+    <rect class="box" x="40" y="506" width="348" height="106" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="64" y="534" fill="#1a7f37">Instance · user A</text>
+    <text class="t lbl" x="64" y="558">uid 100001</text>
+    <text class="t lbl" x="64" y="580">binds a dynamic 127.0.0.1 port only</text>
+    <text class="t lbl" x="64" y="600">own home / workspace / session</text>
+
+    <rect class="box" x="416" y="506" width="348" height="106" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="440" y="534" fill="#1a7f37">Instance · user B</text>
+    <text class="t lbl" x="440" y="558">uid 100002</text>
+    <text class="t lbl" x="440" y="580">binds a dynamic 127.0.0.1 port only</text>
+    <text class="t lbl" x="440" y="600">own home / workspace / session</text>
+
+    <rect class="box" x="792" y="506" width="348" height="106" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="816" y="534" fill="#1a7f37">Instance · user C</text>
+    <text class="t lbl" x="816" y="558">uid 100003</text>
+    <text class="t lbl" x="816" y="580">binds a dynamic 127.0.0.1 port only</text>
+    <text class="t lbl" x="816" y="600">own home / workspace / session</text>
+
+    <path class="ln" d="M 590 612 L 590 652"/>
+
+    <!-- data plane -->
+    <rect class="box" x="40" y="656" width="1100" height="88" rx="10"/>
+    <text class="t sec" x="64" y="684">Data plane</text>
+    <text class="t lbl" x="64" y="708">control-plane DB (SQLite / Postgres) · per-user home / workspace / trash · shared runtime (read-only Python / jq / ripgrep / ffmpeg)</text>
+    <text class="t lbl" x="64" y="730">secrets: AES-256-GCM encrypted at rest; master key from env or &lt;dataRoot&gt;/secret.key (0600)</text>
+
+    <!-- cross-cutting -->
+    <rect x="40" y="756" width="1100" height="58" rx="10" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+    <text class="t chip" x="64" y="779">cross-cutting — egress guard: blocks cloud metadata endpoints · stops instances reaching the host itself</text>
+    <text class="t chip" x="64" y="800">port guard: by client uid only the orchestrator passes　·　crash self-healing: exponential backoff + circuit breaker　·　idle reaping: resident cap + TTL</text>
+  </g>
+</svg>

@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Instance wake and resume",
+    "locale": "en",
+    "viewBox": [
+      1080,
+      560
+    ],
+    "column_fit": "spread",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "detect",
+        "label": "Detect a reaped instance",
+        "focus": [
+          "user",
+          "nginx",
+          "control",
+          "store"
+        ],
+        "note": "The control plane answers from stored state before any process exists."
+      },
+      {
+        "id": "wake",
+        "label": "Spawn and bind",
+        "focus": [
+          "control",
+          "instance"
+        ],
+        "note": "The instance starts under its owner's account and binds a loopback port."
+      },
+      {
+        "id": "resume",
+        "label": "Resume the session",
+        "focus": [
+          "user",
+          "nginx",
+          "instance"
+        ],
+        "note": "Traffic is proxied to the instance once the port is ready."
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "User",
+      "sublabel": "browser session"
+    },
+    {
+      "id": "nginx",
+      "type": "backend",
+      "label": "nginx",
+      "sublabel": "TLS and routing"
+    },
+    {
+      "id": "control",
+      "type": "backend",
+      "label": "Control plane",
+      "sublabel": "Fastify process"
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "SQLite",
+      "sublabel": "instance state"
+    },
+    {
+      "id": "instance",
+      "type": "backend",
+      "label": "User instance",
+      "sublabel": "harness process"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 258,
+      "label": "Detect"
+    },
+    {
+      "from": 264,
+      "to": 314,
+      "label": "Wake"
+    },
+    {
+      "from": 330,
+      "to": 436,
+      "label": "Resume"
+    }
+  ],
+  "messages": [
+    {
+      "id": "open-instance",
+      "from": "user",
+      "to": "nginx",
+      "y": 160,
+      "label": "open the instance URL",
+      "variant": "emphasis"
+    },
+    {
+      "id": "route",
+      "from": "nginx",
+      "to": "control",
+      "y": 188,
+      "label": "route by Host"
+    },
+    {
+      "id": "read-state",
+      "from": "control",
+      "to": "store",
+      "y": 216,
+      "label": "read instance state"
+    },
+    {
+      "id": "state-reclaimed",
+      "from": "store",
+      "to": "control",
+      "y": 244,
+      "label": "reclaimed",
+      "variant": "return"
+    },
+    {
+      "id": "spawn",
+      "from": "control",
+      "to": "instance",
+      "y": 272,
+      "label": "spawn as the owner's account",
+      "variant": "emphasis"
+    },
+    {
+      "id": "port-ready",
+      "from": "instance",
+      "to": "control",
+      "y": 300,
+      "label": "loopback port ready",
+      "variant": "return"
+    },
+    {
+      "id": "wake-page",
+      "from": "control",
+      "to": "user",
+      "y": 340,
+      "label": "waking up, retry shortly",
+      "variant": "dashed"
+    },
+    {
+      "id": "retry",
+      "from": "user",
+      "to": "nginx",
+      "y": 368,
+      "label": "retry"
+    },
+    {
+      "id": "proxy",
+      "from": "nginx",
+      "to": "instance",
+      "y": 396,
+      "label": "proxy /u/<userId>/dsh/*",
+      "variant": "emphasis"
+    },
+    {
+      "id": "session-restored",
+      "from": "instance",
+      "to": "user",
+      "y": 424,
+      "label": "session restored",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "nginx",
+      "from": 180,
+      "to": 430,
+      "type": "backend"
+    },
+    {
+      "participant": "control",
+      "from": 188,
+      "to": 410,
+      "type": "backend"
+    },
+    {
+      "participant": "store",
+      "from": 210,
+      "to": 250,
+      "type": "database"
+    },
+    {
+      "participant": "instance",
+      "from": 268,
+      "to": 430,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Detect",
+      "items": [
+        "The browser never talks to an instance port directly",
+        "The control plane decides from stored state whether a process exists",
+        "A reclaimed instance is a normal state, not an error"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Wake",
+      "items": [
+        "The process is spawned under the owner's own operating-system account",
+        "It binds a loopback port only, and never a public one",
+        "The user gets a wake notice rather than a failure page"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Resume",
+      "items": [
+        "Traffic is proxied only after the port is reported ready",
+        "The conversation continues where it stopped",
+        "Wake, proxy and confinement are separate steps on purpose"
+      ]
+    }
+  ]
+}

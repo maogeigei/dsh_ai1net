@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "覆盖网络",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1310,
+      432
+    ],
+    "views": [
+      {
+        "id": "base-path",
+        "label": "基础通路",
+        "focus": [
+          "browser",
+          "manager",
+          "relay",
+          "worker",
+          "inst"
+        ],
+        "note": "每个节点都只拨出；中继自身只监听回环。"
+      },
+      {
+        "id": "direct-path",
+        "label": "直连通路",
+        "focus": [
+          "manager",
+          "worker",
+          "relay"
+        ],
+        "note": "候选走既有连接交换，且直连只有双向都通才算数。"
+      },
+      {
+        "id": "trust-and-address",
+        "label": "信任与地址",
+        "focus": [
+          "onboarding",
+          "relay",
+          "manager"
+        ],
+        "note": "能不能入网在本地判定；连哪里由一份可轮换的签名下发物决定。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "浏览器",
+      "sublabel": "用户自己的电脑",
+      "pos": [
+        40,
+        80
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "manager",
+      "type": "backend",
+      "label": "管理节点",
+      "sublabel": "控制面",
+      "pos": [
+        380,
+        80
+      ],
+      "size": [
+        170,
+        84
+      ],
+      "tag": "拨出 · 回环端口池"
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "工作节点",
+      "sublabel": "NAT 之后 · 无入站端口",
+      "pos": [
+        720,
+        80
+      ],
+      "size": [
+        170,
+        84
+      ],
+      "tag": "只拨出"
+    },
+    {
+      "id": "onboarding",
+      "type": "security",
+      "label": "信任与地址",
+      "sublabel": "身份 · 签名目录",
+      "pos": [
+        40,
+        280
+      ],
+      "size": [
+        170,
+        80
+      ],
+      "tag": "本地判定 · 地址可轮换"
+    },
+    {
+      "id": "relay",
+      "type": "backend",
+      "label": "中继",
+      "sublabel": "会合与多路复用",
+      "pos": [
+        380,
+        280
+      ],
+      "size": [
+        170,
+        84
+      ],
+      "tag": "只绑回环"
+    },
+    {
+      "id": "inst",
+      "type": "backend",
+      "label": "实例",
+      "sublabel": "每用户一个 OS 账号",
+      "pos": [
+        720,
+        280
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "只绑回环端口"
+    },
+    {
+      "id": "content",
+      "type": "database",
+      "label": "内容面",
+      "sublabel": "分块存储 · 对端取回",
+      "pos": [
+        1060,
+        80
+      ],
+      "size": [
+        170,
+        80
+      ],
+      "tag": "组密钥 · 中继看不到明文"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "No inbound port",
+      "wraps": [
+        "worker",
+        "inst"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-to-manager",
+      "from": "browser",
+      "to": "manager",
+      "label": "HTTPS",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "manager-to-worker",
+      "from": "manager",
+      "to": "worker",
+      "label": "打洞成功后直连",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "worker-to-content",
+      "from": "worker",
+      "to": "content",
+      "label": "块交换",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [
+        975,
+        120
+      ]
+    },
+    {
+      "id": "manager-to-relay",
+      "from": "manager",
+      "to": "relay",
+      "label": "拨出 · 多路复用",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        465,
+        222
+      ]
+    },
+    {
+      "id": "worker-to-relay",
+      "from": "worker",
+      "to": "relay",
+      "label": "拨出 · 多路复用",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "worker-to-inst",
+      "from": "worker",
+      "to": "inst",
+      "label": "回环",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        805,
+        222
+      ]
+    },
+    {
+      "id": "onboarding-to-relay",
+      "from": "onboarding",
+      "to": "relay",
+      "label": "准入 · 下发地址",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [
+        295,
+        320
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "无需入站端口即可达",
+      "items": [
+        "NAT 之后的工作节点从不监听端口：它只建一条出向连接，所有流都跑在它上面",
+        "中继自身只绑回环，因此增加节点不会增加公网可达面",
+        "对调用方而言地址仍是普通的主机与端口，所以换传输不动请求链路"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "先定身份，再定地址",
+      "items": [
+        "四层密钥：离线根只管授权签名者、签名者签发节点凭据、每节点一把密钥、会话用内存密钥",
+        "能不能入网由节点自己在本地判定，因此控制面被攻破也无法静默塞进一台节点",
+        "凡不可验证者一律带具名原因拒绝 —— 绝不静默回退到共享凭据或默认主机"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "直连是优化项，不是必需项",
+      "items": [
+        "候选端点走既有连接交换，因此直连不新增端口、不新增协议",
+        "只有双向都通才算直连可用；否则按具名原因回落 —— 已关闭、冷却中、无地址、单向、超时",
+        "关掉它不是功能降级：入网与准入照旧可用，流量只是继续走中继"
+      ]
+    }
+  ]
+}

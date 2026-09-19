@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="register.title">Sign up</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="stylesheet" href="/design.css" />
+    <link rel="stylesheet" href="/auth-ui.css" />
+    <!-- R5：平台多语言运行时（默认英语） -->
+    <script src="/i18n.js"></script>
+  <style>
+    /* R2-UI：提交忙碌态（点击后立刻可见；对齐 06-工作台UI规范 的按钮/圆角/主色） */
+    .btn[disabled] { opacity: .72; cursor: not-allowed; }
+    .btn.is-busy { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn .sp { width: 14px; height: 14px; flex: 0 0 14px; border: 2px solid rgba(255,255,255,.45);
+               border-top-color: #fff; border-radius: 50%; animation: btnsp .7s linear infinite; }
+    @keyframes btnsp { to { transform: rotate(360deg); } }
+    .msg { min-height: 20px; }
+    /* R5：语言切换（页脚式下拉，不新增页面；中性样式，不引外链） */
+    .auth-lang { margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .auth-lang .i18n-lang-label { font-size: 13px; opacity: .72; }
+    .auth-lang .i18n-lang { font-size: 13px; padding: 3px 8px; border-radius: 6px; cursor: pointer;
+                            border: 1px solid rgba(0,0,0,.16); background: transparent; color: inherit; }
+    @media (prefers-reduced-motion: reduce) { .btn .sp { animation: none; } }
+    /* 邮箱验证码 + 人机验证（复用 .field 的版式，只加"输入框 + 按钮同一行"的排布） */
+    .code-row { display: flex; gap: 8px; align-items: stretch; }
+    .code-row input { flex: 1 1 auto; min-width: 0; }
+    .btn-code { flex: 0 0 auto; padding: 0 12px; min-height: 38px; border-radius: 8px; cursor: pointer;
+                border: 1px solid rgba(0,0,0,.18); background: transparent; color: inherit;
+                font-size: 13px; white-space: nowrap; }
+    .btn-code[disabled] { opacity: .6; cursor: not-allowed; }
+    .captcha-box { min-height: 65px; }
+    .captcha-box .cf-note { font-size: 12px; opacity: .66; }
+  </style>
+  </head>
+  <body class="auth-bg">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="wordmark" data-i18n="brand.name">CapabilityNet</span>
+      </div>
+      <p class="auth-sub" data-i18n="register.sub">Your account must be approved by an admin before you can sign in</p>
+
+      <form id="register">
+        <div class="field">
+          <label for="username" data-i18n="register.username">Username (3–32 letters / digits / underscore / hyphen)</label>
+          <input id="username" name="username" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="password" data-i18n="register.password">Password (at least 8 characters)</label>
+          <div class="pw-wrap">
+            <input id="password" name="password" type="password" autocomplete="new-password" required />
+            <button class="pw-toggle" type="button" id="pwToggle" data-i18n="common.show"
+                    data-i18n-attr="aria-label:common.showPw" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+        </div>
+        <!-- 邮箱 + 验证码（仅在服务端启用邮箱验证时显示；配置读不到时也显示，由服务端定夺） -->
+        <div class="field" id="emailField">
+          <label for="email" data-i18n="register.email">E-mail</label>
+          <div class="code-row">
+            <input id="email" name="email" type="email" autocomplete="email"
+                   placeholder="you@example.com" data-i18n-attr="placeholder:register.emailPh" />
+            <button class="btn-code" type="button" id="sendCode" data-i18n="register.sendCode">Send code</button>
+          </div>
+        </div>
+        <div class="field" id="codeField">
+          <label for="code" data-i18n="register.code">E-mail verification code</label>
+          <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8"
+                 placeholder="6-digit code" data-i18n-attr="placeholder:register.codePh" />
+        </div>
+        <div class="field" id="captchaField" style="display:none">
+          <label data-i18n="register.captcha">Human verification</label>
+          <div class="captcha-box" id="captcha"><span class="cf-note" data-i18n="register.captchaLoading">Loading…</span></div>
+        </div>
+        <button class="btn primary" type="submit" data-i18n="register.submit">Sign up</button>
+        <p class="msg" id="msg"></p>
+      </form>
+
+      <p class="auth-alt"><span data-i18n="register.hasAccount">Already have an account?</span>
+        <a href="/login.html" data-i18n="register.signIn">Sign in</a></p>
+
+      <!-- R5：语言切换（默认英语；切换写 cookie dsh_lang 后重载） -->
+      <div class="auth-lang"><div data-i18n-switch="label"></div></div>
+    </div>
+
+    <script>
+
+      // 显示/隐藏密码（对齐 06-工作台UI规范 的 .btn-icon 交互；键盘可达 = 原生 button）
+      const pwInput = document.getElementById('password')
+      const pwBtn = document.getElementById('pwToggle')
+      if (pwInput && pwBtn) {
+        pwBtn.addEventListener('click', () => {
+          const show = pwInput.type === 'password'
+          pwInput.type = show ? 'text' : 'password'
+          pwBtn.textContent = I18N.t(show ? 'common.hide' : 'common.show')
+          pwBtn.setAttribute('aria-label', I18N.t(show ? 'common.hidePw' : 'common.showPw'))
+          pwBtn.setAttribute('aria-pressed', String(show))
+          pwInput.focus()
+        })
+      }
+
+      const form = document.getElementById('register')
+      const msg = document.getElementById('msg')
+      // R2-UI：任何提交都要有"看得见"的忙碌态（否则几秒内用户会以为没反应）
+      function setBusy(busy, label) {
+        const btn = form.querySelector('button[type=submit]')
+        if (!btn) return
+        if (busy) {
+          if (!btn.dataset.idle) btn.dataset.idle = btn.innerHTML
+          btn.disabled = true
+          btn.classList.add('is-busy')
+          btn.innerHTML = '<span class="sp"></span><span>' + (label || I18N.t('common.busy')) + '</span>'
+        } else {
+          btn.disabled = false
+          btn.classList.remove('is-busy')
+          if (btn.dataset.idle) btn.innerHTML = btn.dataset.idle
+        }
+      }
+      function setMsg(text, kind) { msg.className = 'msg ' + (kind || 'err'); msg.textContent = text }
+
+      /* ── 注册配置 / 邮箱验证码 / 人机验证 ──────────────────────────
+         三条设计取舍：
+         ① **配置由服务端下发**（`/api/auth/register/config`）：sitekey 随环境变，
+            写死在页面里会让"换环境忘换 key"表现为"控件在、但永远验不过"的静默失效。
+         ② **配置读不到时仍显示邮箱字段**（不校验、照原样提交）：服务端才是权威，
+            读不到配置就"整页降级成不可注册"是最差的失败方式。
+         ③ **Turnstile token 单次有效** ⇒ 每次提交前取**新** token（用完即作废并 reset），
+            否则第二次请求必然拿到 `timeout-or-duplicate`。                              */
+      const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/
+      const USERNAME_RE = /^[a-zA-Z0-9_-]{3,32}$/
+      let cfg = { captcha: { enabled: false, siteKey: '', action: 'signup' }, emailCode: { enabled: false } }
+      let requireEmailCode = false
+      let captchaToken = ''
+      let widgetId = null
+      let resolveToken = null
+      let cooldownLeft = 0
+      let cooldownTimer = null
+
+      const emailField = document.getElementById('emailField')
+      const codeField = document.getElementById('codeField')
+      const captchaField = document.getElementById('captchaField')
+      const sendBtn = document.getElementById('sendCode')
+
+      function sendBtnLabel() {
+        sendBtn.textContent = cooldownLeft > 0
+          ? I18N.t('register.resendIn', { n: cooldownLeft })
+          : I18N.t('register.sendCode')
+        sendBtn.disabled = cooldownLeft > 0
+      }
+      function startCooldown(seconds) {
+        cooldownLeft = Math.max(1, Math.floor(seconds || 60))
+        sendBtnLabel()
+        if (cooldownTimer) clearInterval(cooldownTimer)
+        cooldownTimer = setInterval(() => {
+          cooldownLeft -= 1
+          sendBtnLabel()
+          if (cooldownLeft <= 0) { clearInterval(cooldownTimer); cooldownTimer = null }
+        }, 1000)
+      }
+
+      /** 取一个**新鲜**的人机验证 token（无 token 时 reset 并等待回调；超时返回空串）。 */
+      function freshToken() {
+        if (!cfg.captcha.enabled) return Promise.resolve('')
+        if (captchaToken) return Promise.resolve(captchaToken)
+        return new Promise((resolve) => {
+          let settled = false
+          const finish = (value) => { if (!settled) { settled = true; resolveToken = null; resolve(value) } }
+          resolveToken = finish
+          try { if (widgetId !== null && window.turnstile) window.turnstile.reset(widgetId) } catch (e) { /* 忽略 */ }
+          setTimeout(() => finish(''), 12000)
+        })
+      }
+      function consumeToken() { captchaToken = '' }
+
+      function mapError(code, attemptsLeft) {
+        switch (code) {
+          case 'username_taken': return I18N.t('register.errTaken')
+          case 'email_taken': return I18N.t('register.errEmailTaken')
+          case 'invalid_email':
+          case 'email_required': return I18N.t('register.errEmail')
+          case 'invalid_username': return I18N.t('register.errUsername')
+          case 'code_attempts_exceeded': return I18N.t('register.errCodeExhausted')
+          case 'code_invalid':
+          case 'code_missing':
+          case 'code_expired':
+          case 'code_used':
+          case 'code_username_mismatch':
+            return attemptsLeft > 0
+              ? I18N.t('register.errCode') + ' (' + attemptsLeft + ')'
+              : I18N.t('register.errCode')
+          case 'mail_send_failed': return I18N.t('register.errMail')
+          case 'captcha_failed':
+          case 'captcha_unavailable': return I18N.t('register.errCaptcha')
+          case 'email_code_disabled': return I18N.t('register.errUnavailable')
+          default: return I18N.t('register.errFailed')
+        }
+      }
+
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const s = document.createElement('script')
+          s.src = src
+          s.async = true
+          s.defer = true
+          s.onload = () => resolve()
+          s.onerror = () => reject(new Error('load-failed'))
+          document.head.appendChild(s)
+        })
+      }
+
+      async function boot() {
+        let loaded = null
+        try {
+          const res = await fetch('/api/auth/register/config', { headers: { accept: 'application/json' } })
+          if (res.ok) loaded = await res.json()
+        } catch (e) { /* 见取舍 ②：读不到就降级，不放倒整页 */ }
+
+        if (loaded) {
+          cfg = {
+            captcha: loaded.captcha || { enabled: false, siteKey: '', action: 'signup' },
+            emailCode: loaded.emailCode || { enabled: false },
+          }
+          requireEmailCode = !!cfg.emailCode.enabled
+        }
+        // 字段显隐：启用时才必填；配置读不到时"显示但不强制"（服务端会给出明确错误）。
+        const showEmail = loaded ? requireEmailCode : true
+        emailField.style.display = showEmail ? '' : 'none'
+        codeField.style.display = showEmail ? '' : 'none'
+        sendBtnLabel()
+
+        if (!cfg.captcha.enabled || !cfg.captcha.siteKey) return
+        captchaField.style.display = ''
+        const box = document.getElementById('captcha')
+        try {
+          await loadScript('https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit')
+          if (!window.turnstile) throw new Error('no-api')
+          box.innerHTML = ''
+          widgetId = window.turnstile.render(box, {
+            sitekey: cfg.captcha.siteKey,
+            // action 由服务端下发（与服务端 siteverify 校的是同一份取值）——
+            // 它是「这枚 token 为哪个业务签发」的标签，⛔ 不要在前端另写一个常量。
+            action: cfg.captcha.action || 'signup',
+            callback: (token) => { captchaToken = token; if (resolveToken) resolveToken(token) },
+            'expired-callback': () => { captchaToken = '' },
+            'error-callback': () => { captchaToken = '' },
+          })
+        } catch (e) {
+          // 加载失败 ⇒ **明确告知 + 不给提交**（提交也一定被服务端拒，不如先说清楚）
+          box.innerHTML = ''
+          setMsg(I18N.t('register.errCaptchaLoad'))
+          form.querySelector('button[type=submit]').disabled = true
+        }
+      }
+
+      sendBtn.addEventListener('click', async () => {
+        if (cooldownLeft > 0) return
+        setMsg('')
+        const username = form.username.value.trim()
+        const email = form.email.value.trim()
+        if (!USERNAME_RE.test(username)) return setMsg(I18N.t('register.errUsername'))
+        if (!EMAIL_RE.test(email)) return setMsg(I18N.t('register.errEmail'))
+        const token = await freshToken()
+        if (cfg.captcha.enabled && token === '') return setMsg(I18N.t('register.errCaptchaToken'))
+
+        sendBtn.disabled = true
+        sendBtn.textContent = I18N.t('register.sendingCode')
+        try {
+          const res = await fetch('/api/auth/register/email-code', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ username, email, captchaToken: token }),
+          })
+          const body = await res.json().catch(() => ({}))
+          consumeToken() // 无论成败，token 都已用过
+          if (!res.ok) {
+            const wait = Number(body.retryAfterSeconds || 0)
+            if (res.status === 429) {
+              if (wait > 0) startCooldown(wait)
+              setMsg(I18N.t('register.errCooldown', { n: wait > 0 ? wait : 60 }))
+            } else {
+              setMsg(mapError(body.error, body.attemptsLeft))
+            }
+          } else {
+            startCooldown(body.retryAfterSeconds || 60)
+            setMsg(I18N.t('register.codeSent'), 'ok')
+          }
+        } catch (e) {
+          consumeToken()
+          setMsg(I18N.t('register.errMail'))
+        } finally {
+          if (cooldownLeft <= 0) { sendBtn.disabled = false; sendBtn.textContent = I18N.t('register.sendCode') }
+        }
+      })
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault()
+        setMsg('')
+        const username = form.username.value.trim()
+        const password = form.password.value
+        if (!USERNAME_RE.test(username)) return setMsg(I18N.t('register.errUsername'))
+        if (password.length < 8) return setMsg(I18N.t('register.errPassword'))
+
+        let email = ''
+        let code = ''
+        if (emailField.style.display !== 'none') {
+          email = form.email.value.trim()
+          code = form.code.value.trim()
+          const touched = email !== '' || code !== ''
+          if (requireEmailCode || touched) {
+            if (!EMAIL_RE.test(email)) return setMsg(I18N.t('register.errEmail'))
+            if (!/^\d{4,8}$/.test(code)) return setMsg(I18N.t('register.errEmailRequired'))
+          }
+        }
+
+        let token = ''
+        if (cfg.captcha.enabled) {
+          token = await freshToken()
+          if (token === '') return setMsg(I18N.t('register.errCaptchaToken'))
+        }
+
+        setBusy(true, I18N.t('register.signingUp'))
+        try {
+          const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ username, password, email, code, captchaToken: token }),
+          })
+          const body = await res.json().catch(() => ({}))
+          if (cfg.captcha.enabled) consumeToken()
+          if (!res.ok) {
+            setBusy(false)
+            return setMsg(mapError(body.error, body.attemptsLeft))
+          }
+          msg.className = 'msg ok'
+          msg.textContent = I18N.t('register.ok')
+          setBusy(false)
+          form.querySelector('button[type=submit]').disabled = true
+          form.reset()
+        } catch (e) {
+          if (cfg.captcha.enabled) consumeToken()
+          setBusy(false)
+          setMsg(I18N.t('register.errFailed'))
+        }
+      })
+
+      boot()
+    </script>
+  </body>
+</html>

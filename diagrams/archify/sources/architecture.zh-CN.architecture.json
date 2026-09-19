@@ -1,0 +1,298 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "request-path",
+        "label": "主请求链路",
+        "focus": [
+          "user",
+          "nginx",
+          "control",
+          "instA"
+        ],
+        "note": "从浏览器到某个用户自己的那个 harness 进程。"
+      },
+      {
+        "id": "isolation",
+        "label": "每用户隔离",
+        "focus": [
+          "control",
+          "instA",
+          "instB",
+          "guard"
+        ],
+        "note": "一个用户 = 一个系统账号、一个进程、一个回环端口、一份出网策略。"
+      },
+      {
+        "id": "governance",
+        "label": "账号与治理",
+        "focus": [
+          "admin",
+          "control",
+          "store",
+          "pool"
+        ],
+        "note": "管理员没有放行的东西，到不了用户手里。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "admin",
+      "type": "external",
+      "label": "管理员",
+      "sublabel": "审核账号",
+      "pos": [
+        40,
+        120
+      ],
+      "size": [
+        135,
+        60
+      ]
+    },
+    {
+      "id": "user",
+      "type": "external",
+      "label": "浏览器",
+      "sublabel": "用户自己的电脑",
+      "pos": [
+        40,
+        320
+      ],
+      "size": [
+        135,
+        60
+      ]
+    },
+    {
+      "id": "nginx",
+      "type": "backend",
+      "label": "nginx",
+      "sublabel": "TLS 终止",
+      "pos": [
+        218,
+        320
+      ],
+      "size": [
+        135,
+        60
+      ],
+      "tag": "DNS-01 泛域名"
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "SQLite",
+      "sublabel": "账号与状态",
+      "pos": [
+        400,
+        120
+      ],
+      "size": [
+        165,
+        60
+      ]
+    },
+    {
+      "id": "control",
+      "type": "backend",
+      "label": "控制面",
+      "sublabel": "单一 Fastify 进程",
+      "pos": [
+        400,
+        308
+      ],
+      "size": [
+        175,
+        84
+      ],
+      "tag": "认证 · 审核 · 代理 · 管理"
+    },
+    {
+      "id": "pool",
+      "type": "database",
+      "label": "插件与技能池",
+      "sublabel": "管理员维护",
+      "pos": [
+        400,
+        480
+      ],
+      "size": [
+        165,
+        60
+      ],
+      "tag": "已预检"
+    },
+    {
+      "id": "guard",
+      "type": "security",
+      "label": "端口与出网护栏",
+      "sublabel": "只绑回环 · 出网白名单",
+      "pos": [
+        645,
+        118
+      ],
+      "size": [
+        175,
+        60
+      ]
+    },
+    {
+      "id": "instA",
+      "type": "backend",
+      "label": "实例 · 用户 A",
+      "sublabel": "uid 100001",
+      "pos": [
+        645,
+        240
+      ],
+      "size": [
+        175,
+        62
+      ],
+      "tag": "只绑回环端口"
+    },
+    {
+      "id": "instB",
+      "type": "backend",
+      "label": "实例 · 用户 B",
+      "sublabel": "uid 100002",
+      "pos": [
+        645,
+        345
+      ],
+      "size": [
+        175,
+        62
+      ],
+      "tag": "只绑回环端口"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "每用户隔离",
+      "wraps": [
+        "instA",
+        "instB"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "主机",
+      "wraps": [
+        "nginx",
+        "control",
+        "store",
+        "pool",
+        "guard",
+        "instA",
+        "instB"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "user-to-nginx",
+      "from": "user",
+      "to": "nginx",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "admin-to-control",
+      "from": "admin",
+      "to": "control",
+      "label": "管理"
+    },
+    {
+      "id": "nginx-to-control",
+      "from": "nginx",
+      "to": "control",
+      "label": "按 Host 路由",
+      "labelAt": [
+        372,
+        404
+      ]
+    },
+    {
+      "id": "control-to-store",
+      "from": "control",
+      "to": "store",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "control-to-pool",
+      "from": "control",
+      "to": "pool",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "control-to-instA",
+      "from": "control",
+      "to": "instA",
+      "label": "拉起",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "control-to-instB",
+      "from": "control",
+      "to": "instB",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "guard-to-instA",
+      "from": "guard",
+      "to": "instA",
+      "label": "钉住并过滤",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        732,
+        212
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "请求链路",
+      "items": [
+        "nginx 为主域和一组泛子域终止 TLS",
+        "控制面按 Host 头或 /u/<userId>/dsh/* 路由",
+        "每个实例只绑回环端口，从不直接对外暴露"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "每用户隔离",
+      "items": [
+        "每个用户有独立系统账号、独立 harness 进程和私有文件根",
+        "路径围栏把实例限制在自己的目录内",
+        "端口护栏把监听套接字钉在回环上，出网护栏过滤对外流量"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "基座、治理与自愈",
+      "items": [
+        "基座原样使用，不修改也不内嵌 —— 每个用户一个子进程",
+        "账号自助注册、管理员审核通过才启用；插件与技能只来自管理员维护的候选池",
+        "崩溃时先拉起守护实例修复配置再重启；反复崩溃会退避并触发熔断；空闲实例被回收以归还内存"
+      ]
+    }
+  ]
+}

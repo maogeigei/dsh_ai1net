@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="index.title">Workspace</title>
+    <!-- R5：平台多语言运行时（默认英语） -->
+    <script src="/i18n.js"></script>
+  </head>
+  <body>
+    <script>
+      ;(async () => {
+        const res = await fetch('/api/auth/me')
+        if (!res.ok) {
+          location.href = '/login.html'
+          return
+        }
+        // 所有用户（admin/active）统一直达 DSH 会话窗口
+        try {
+          const r = await fetch('/api/dsh/enter', { method: 'POST' })
+          const b = await r.json().catch(() => ({}))
+          if (r.ok && b.kind === 'session' && b.url) {
+            location.href = b.url
+            return
+          }
+        } catch {
+          // fall through to desktop
+        }
+        location.href = '/portal.html'
+      })()
+    </script>
+  </body>
+</html>

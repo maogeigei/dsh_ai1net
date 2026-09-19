@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="login.title">Sign in</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="stylesheet" href="/design.css" />
+    <link rel="stylesheet" href="/auth-ui.css" />
+    <!-- R5：平台多语言运行时（词条表 + data-i18n 就地替换；默认英语） -->
+    <script src="/i18n.js"></script>
+  <style>
+    /* R2-UI：提交忙碌态（点击后立刻可见；对齐 06-工作台UI规范 的按钮/圆角/主色） */
+    .btn[disabled] { opacity: .72; cursor: not-allowed; }
+    .btn.is-busy { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn .sp { width: 14px; height: 14px; flex: 0 0 14px; border: 2px solid rgba(255,255,255,.45);
+               border-top-color: #fff; border-radius: 50%; animation: btnsp .7s linear infinite; }
+    @keyframes btnsp { to { transform: rotate(360deg); } }
+    .msg { min-height: 20px; }
+    /* R5：语言切换（页脚式下拉，不新增页面；中性样式，不引外链） */
+    .auth-lang { margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .auth-lang .i18n-lang-label { font-size: 13px; opacity: .72; }
+    .auth-lang .i18n-lang { font-size: 13px; padding: 3px 8px; border-radius: 6px; cursor: pointer;
+                            border: 1px solid rgba(0,0,0,.16); background: transparent; color: inherit; }
+    @media (prefers-reduced-motion: reduce) { .btn .sp { animation: none; } }
+  </style>
+  </head>
+  <body class="auth-bg">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="wordmark" data-i18n="brand.name">CapabilityNet</span>
+      </div>
+      <p class="auth-sub" data-i18n="login.sub">Welcome to the AI world</p>
+
+      <form id="login">
+        <div class="field">
+          <label for="username" data-i18n="login.username">Username</label>
+          <input id="username" name="username" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="password" data-i18n="login.password">Password</label>
+          <div class="pw-wrap">
+            <input id="password" name="password" type="password" autocomplete="current-password" required />
+            <button class="pw-toggle" type="button" id="pwToggle" data-i18n="common.show"
+                    data-i18n-attr="aria-label:common.showPw" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+        </div>
+        <button class="btn primary" type="submit" data-i18n="login.submit">Sign in</button>
+
+        <p class="msg" id="msg"></p>
+      </form>
+
+      <p class="auth-alt"><span data-i18n="login.noAccount">Don't have an account?</span>
+        <a href="/register.html" data-i18n="login.register">Sign up</a></p>
+
+      <!-- R5：语言切换（默认英语；切换写 cookie dsh_lang 后重载） -->
+      <div class="auth-lang"><div data-i18n-switch="label"></div></div>
+    </div>
+
+    <script>
+
+      // 显示/隐藏密码（对齐 06-工作台UI规范 的 .btn-icon 交互；键盘可达 = 原生 button）
+      const pwInput = document.getElementById('password')
+      const pwBtn = document.getElementById('pwToggle')
+      if (pwInput && pwBtn) {
+        pwBtn.addEventListener('click', () => {
+          const show = pwInput.type === 'password'
+          pwInput.type = show ? 'text' : 'password'
+          pwBtn.textContent = I18N.t(show ? 'common.hide' : 'common.show')
+          pwBtn.setAttribute('aria-label', I18N.t(show ? 'common.hidePw' : 'common.showPw'))
+          pwBtn.setAttribute('aria-pressed', String(show))
+          pwInput.focus()
+        })
+      }
+
+      const form = document.getElementById('login')
+      const msg = document.getElementById('msg')
+      // R2-UI：任何提交都要有"看得见"的忙碌态（否则几秒内用户会以为没反应）
+      function setBusy(busy, label) {
+        const btn = form.querySelector('button[type=submit]')
+        if (!btn) return
+        if (busy) {
+          if (!btn.dataset.idle) btn.dataset.idle = btn.innerHTML
+          btn.disabled = true
+          btn.classList.add('is-busy')
+          btn.innerHTML = '<span class="sp"></span><span>' + (label || I18N.t('common.busy')) + '</span>'
+        } else {
+          btn.disabled = false
+          btn.classList.remove('is-busy')
+          if (btn.dataset.idle) btn.innerHTML = btn.dataset.idle
+        }
+      }
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault()
+        msg.textContent = ''
+        msg.className = 'msg err'
+        setBusy(true, I18N.t('login.signingIn'))
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ username: form.username.value, password: form.password.value }),
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          msg.textContent =
+            body.error === 'pending_review' ? I18N.t('login.errPending')
+            : body.error === 'disabled' ? I18N.t('login.errDisabled')
+            : I18N.t('login.errBadCreds')
+          setBusy(false)
+          return
+        }
+        const body = await res.json()
+        const role = body && body.user ? body.user.role : null
+        // 所有用户（admin/active）登录后统一直达 DSH 会话窗口
+        setBusy(true, I18N.t('login.entering'))
+        try {
+          const r = await fetch('/api/dsh/enter', { method: 'POST' })
+          const b = await r.json().catch(() => ({}))
+          if (r.ok && b.kind === 'session' && b.url) {
+            location.href = b.url
+            return
+          }
+          // 失败兜底：admin 可手动进管理台 /portal.html
+          const errText =
+            b.error === 'instance_starting' ? I18N.t('login.errStarting')
+            : (b.error ?? 'HTTP ' + r.status)
+          // R5：不再用 innerHTML 拼文案（安全）；管理台入口用 DOM 组装
+          msg.textContent = I18N.t('login.errEnter') + errText
+          if (role === 'admin') {
+            const link = document.createElement('a')
+            link.href = '/portal.html'
+            link.textContent = I18N.t('login.gotoAdmin')
+            msg.appendChild(document.createTextNode('（'))
+            msg.appendChild(link)
+            msg.appendChild(document.createTextNode('）'))
+          }
+          setBusy(false)
+        } catch {
+          msg.textContent = I18N.t('login.errNetwork')
+          setBusy(false)
+        }
+      })
+    </script>
+  </body>
+</html>

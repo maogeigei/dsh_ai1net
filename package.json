@@ -1,0 +1,77 @@
+{
+  "name": "dsh_ai1net",
+  "version": "1.4.0",
+  "license": "AGPL-3.0-only",
+  "description": "DSH 用户平台（DSH Users Platform）：把 DeepSeek Harness（DSH）变成可对公网运营的多租户服务 —— 注册审核、每用户隔离实例、网页桌面、插件与技能管理、一键部署。",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./runtime": "./lib/runtime.js"
+  },
+  "bin": {
+    "dsh_ai1net": "./lib/cli.js"
+  },
+  "files": [
+    "lib",
+    "assets",
+    "web",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "dev": "node lib/cli.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "npm run build && node scripts/verify-inject.cjs lib/supervisor/proxy.js && node scripts/verify-static.mjs && node scripts/verify-model-landing.mjs && node scripts/verify-dsh-install.mjs"
+  },
+  "dsh": {
+    "plugin": true,
+    "kind": "server",
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "disclosure": {
+    "cloud": true,
+    "network": [
+      "https://api.deepseek.com"
+    ],
+    "apiKeys": [
+      {
+        "env": "DEEPSEEK_API_KEY",
+        "storage": "sqlite-encrypted-ref"
+      }
+    ],
+    "permissions": {
+      "filesystem": "per-user-0700",
+      "network": "egress",
+      "env": "read-listed"
+    },
+    "jurisdiction": [
+      "PIPL(CN)"
+    ],
+    "retention": "server"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "^10.0.0",
+    "@fastify/static": "^10.1.3",
+    "better-sqlite3": "^11.10.0",
+    "fastify": "^5.0.0",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maogeigei/dsh_ai1net.git"
+  }
+}

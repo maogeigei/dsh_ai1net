@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "集群模式",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "request-path", "label": "主请求链路", "focus": ["user", "nginx", "manager", "worker", "instA"], "note": "同一个浏览器请求，只是实例现在跑在另一台主机上。" },
+      { "id": "ownership", "label": "归属租约", "focus": ["manager", "pg"], "note": "哪台主机拥有某个用户的实例，靠原子认领决定，而不是进程内的一张表。" },
+      { "id": "unchanged", "label": "不变的部分", "focus": ["worker", "instA", "instB"], "note": "隔离、配额、崩溃策略与插件探活的表现与单机完全一致。" }
+    ]
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "浏览器", "sublabel": "用户自己的电脑", "pos": [40, 300], "size": [130, 60] },
+    { "id": "nginx", "type": "backend", "label": "nginx", "sublabel": "TLS 终止", "pos": [205, 300], "size": [135, 60], "tag": "泛域名证书" },
+    { "id": "pg", "type": "database", "label": "PostgreSQL", "sublabel": "共享状态", "pos": [405, 120], "size": [180, 66], "tag": "worker 注册表 · 归属" },
+    { "id": "manager", "type": "backend", "label": "管理节点", "sublabel": "控制面", "pos": [405, 296], "size": [180, 84], "tag": "认证 · 审核 · 租约" },
+    { "id": "worker", "type": "backend", "label": "工作节点", "sublabel": "入站 agent", "pos": [672, 296], "size": [180, 84], "tag": "需令牌认证" },
+    { "id": "instA", "type": "backend", "label": "实例 · 用户 A", "sublabel": "uid 100001", "pos": [560, 452], "size": [180, 62], "tag": "只绑回环端口" },
+    { "id": "instB", "type": "backend", "label": "实例 · 用户 B", "sublabel": "uid 100002", "pos": [770, 452], "size": [180, 62], "tag": "只绑回环端口" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "管理节点主机", "wraps": ["nginx", "manager", "pg"] },
+    { "kind": "region", "label": "工作节点主机", "wraps": ["worker", "instA", "instB"] }
+  ],
+  "connections": [
+    { "id": "user-to-nginx", "from": "user", "to": "nginx", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "nginx-to-manager", "from": "nginx", "to": "manager", "label": "按 Host 路由", "labelAt": [352, 384] },
+    { "id": "manager-to-pg", "from": "manager", "to": "pg", "label": "原子认领", "variant": "emphasis", "fromSide": "top", "toSide": "bottom", "labelAt": [446, 232] },
+    { "id": "manager-to-worker", "from": "manager", "to": "worker", "label": "驱动", "variant": "emphasis", "fromSide": "right", "toSide": "left" },
+    { "id": "worker-to-instA", "from": "worker", "to": "instA", "fromSide": "bottom", "toSide": "top" },
+    { "id": "worker-to-instB", "from": "worker", "to": "instB", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "归属", "items": ["哪台主机拥有某个用户的实例，由共享数据库里的一次原子认领决定", "租约带 TTL 并定期续期，每次写入都盖 epoch 戳，因此归属永远不含糊", "单机模式下这件事由进程内的一张表天然保证"] },
+    { "dot": "emerald", "title": "用户得到什么", "items": ["从用户侧看什么都没变：同一套请求链路、同一段对话、同一批文件", "实例依然只绑回环端口", "工作节点暴露一个需令牌认证的入站接口，用于实例生命周期与文件操作"] },
+    { "dot": "orange", "title": "同一套基线", "items": ["每台工作节点使用同一个绝对数据根，实例的路径在任何主机上含义相同", "工作节点复用单机的 spawner 与同一份路径安全代码", "隔离、内存配额、崩溃退避与插件探活表现完全一致"] }
+  ]
+}

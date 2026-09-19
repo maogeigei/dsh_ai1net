@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 760" width="1180" height="760" role="img" aria-label="DSH 用户平台集群架构图">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+    <style>
+      .t    { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
+      .h1   { font-size: 27px; font-weight: 700; }
+      .sub  { font-size: 14px; fill: #57606a; }
+      .sec  { font-size: 15px; font-weight: 600; }
+      .lbl  { font-size: 13px; fill: #57606a; }
+      .chip { font-size: 13px; }
+      .box  { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.5; }
+      .ln   { stroke: #57606a; stroke-width: 1.8; fill: none; marker-end: url(#ar); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="760" rx="14" fill="#f6f8fa"/>
+
+  <g fill="#1f2328">
+    <text class="t h1" x="40" y="50">DSH 用户平台 · 集群架构</text>
+    <text class="t sub" x="40" y="76">控制面跨主机拆分：一个管理节点 + 若干工作节点。单机模式不变，且仍是默认。</text>
+
+    <!-- 浏览器 -->
+    <rect class="box" x="40" y="100" width="1100" height="56" rx="10"/>
+    <text class="t sec" x="64" y="134">浏览器</text>
+    <text class="t lbl" x="150" y="134">桌面 / 手机 —— 一个主域，每个用户自己的子域</text>
+
+    <path class="ln" d="M 590 156 L 590 190"/>
+    <text class="t lbl" x="604" y="178">HTTPS（通配证书）</text>
+
+    <!-- nginx -->
+    <rect class="box" x="40" y="194" width="1100" height="52" rx="10"/>
+    <text class="t sec" x="64" y="226">nginx</text>
+    <text class="t lbl" x="140" y="226">TLS 终结 · 所有请求都路由到管理节点</text>
+
+    <path class="ln" d="M 590 246 L 590 284"/>
+    <text class="t lbl" x="604" y="272">按 Host / 子路径路由</text>
+
+    <!-- 管理节点 -->
+    <rect class="box" x="40" y="288" width="1100" height="168" rx="10" stroke="#0969da" stroke-width="2"/>
+    <text class="t sec" x="64" y="316" fill="#0969da">管理节点</text>
+    <text class="t lbl" x="150" y="316">控制面 —— 账号、路由、管理台，以及「哪个实例归谁」</text>
+
+    <rect x="64" y="330" width="336" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="355">认证 / 审核 / 会话 · 管理台</text>
+    <rect x="412" y="330" width="336" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="428" y="355">路由与反代 · 网页桌面 · 文件服务</text>
+    <rect x="760" y="330" width="356" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="776" y="355">插件与技能 · 模型设置</text>
+
+    <!-- 归属租约（高亮） -->
+    <rect x="64" y="382" width="684" height="58" rx="8" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.6"/>
+    <text class="t chip" x="80" y="404" fill="#7a5c00">归属租约 —— 跨主机保证「一个用户同时只有一个活实例」</text>
+    <text class="t lbl" x="80" y="425">在 Postgres 里原子抢占 · 按 TTL 定时续租 · 每次写入都带 epoch</text>
+
+    <rect x="760" y="382" width="356" height="58" rx="8" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+    <text class="t chip" x="776" y="404">共享数据库</text>
+    <text class="t lbl" x="776" y="425">Postgres · 工作节点注册表 + 实例归属</text>
+
+    <path class="ln" d="M 590 456 L 590 496"/>
+    <text class="t lbl" x="604" y="482">worker agent 协议（令牌鉴权 · 每次操作带幂等键）</text>
+
+    <!-- 工作节点 -->
+    <rect class="box" x="40" y="500" width="1100" height="184" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="64" y="528" fill="#1a7f37">工作节点</text>
+    <text class="t lbl" x="150" y="528">跑实例 —— 每用户一个，单机形态下的全部语义原样保留</text>
+
+    <rect x="64" y="542" width="336" height="40" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="567">worker agent（内部 HTTP 服务）</text>
+    <rect x="412" y="542" width="336" height="40" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+    <text class="t chip" x="428" y="567">与单机同一套 spawner</text>
+    <rect x="760" y="542" width="356" height="40" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+    <text class="t chip" x="776" y="567">文件接口 · 复用同一份路径安全代码</text>
+
+    <rect class="box" x="64" y="594" width="336" height="72" rx="10"/>
+    <text class="t sec" x="80" y="618" fill="#1a7f37">实例 · 用户 A</text>
+    <text class="t lbl" x="80" y="638">uid 100001 · 只绑回环端口</text>
+    <text class="t lbl" x="80" y="656">独立 home / workspace / 会话</text>
+
+    <rect class="box" x="412" y="594" width="336" height="72" rx="10"/>
+    <text class="t sec" x="428" y="618" fill="#1a7f37">实例 · 用户 B</text>
+    <text class="t lbl" x="428" y="638">uid 100002 · 只绑回环端口</text>
+    <text class="t lbl" x="428" y="656">独立 home / workspace / 会话</text>
+
+    <rect x="760" y="594" width="356" height="72" rx="8" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+    <text class="t chip" x="776" y="618">隔离不变</text>
+    <text class="t lbl" x="776" y="638">bwrap / uid / scope、内存配额、</text>
+    <text class="t lbl" x="776" y="656">崩溃退避与熔断、插件探活</text>
+
+    <!-- 跨层 -->
+    <rect x="40" y="696" width="1100" height="48" rx="10" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+    <text class="t chip" x="64" y="718">协议纪律 —— 工作节点向管理节点拨入 · 每次操作一个幂等键 · 归属只由管理节点写入</text>
+    <text class="t lbl" x="64" y="736">各主机使用同一个绝对数据根，实例在任何一台机器上路径含义一致</text>
+  </g>
+</svg>

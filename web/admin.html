@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理台</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="stylesheet" href="/design.css" />
+  </head>
+  <body class="auth-bg">
+    <script>
+      /* 会话失效统一跳登录页：避免页面直接吐 {"error":"unauthorized"} 却停在原地。
+         登录页/注册页自身不装，否则密码错误时会被弹走。 */
+      ;(function () {
+        var p = location.pathname
+        if (p === '/' || p === '/index.html' || p === '/login.html' || p === '/register.html') return
+        var orig = window.fetch
+        window.fetch = function () {
+          return orig.apply(this, arguments).then(function (res) {
+            if (res && res.status === 401) location.href = '/login.html'
+            return res
+          })
+        }
+      })()
+    </script>
+
+    <div class="auth-card" style="max-width: 720px">
+      <div class="auth-brand">
+        <span class="wordmark">能力网络</span>
+      </div>
+      <p class="auth-sub" id="sub">仅限管理员</p>
+
+      <div id="login" class="hidden">
+        <div class="field"><label>用户名</label><input id="username" autocomplete="username" /></div>
+        <div class="field"><label>密码</label><input id="password" type="password" autocomplete="current-password" /></div>
+        <button class="btn primary" id="loginBtn">登录</button>
+        <p class="msg err" id="loginMsg"></p>
+      </div>
+
+      <div id="console" class="hidden">
+        <div class="row-actions" style="justify-content:space-between">
+          <span>登录为 <strong id="who"></strong> <a href="/portal.html#/skills" style="margin-left:10px">技能管理</a></span>
+          <button class="btn ghost small" id="logoutBtn">退出</button>
+        </div>
+        <table class="admin">
+          <thead><tr><th>用户名</th><th>角色</th><th>共享模型</th><th>注册时间</th><th>操作</th></tr></thead>
+          <tbody id="users"></tbody>
+        </table>
+
+        <p class="auth-sub" style="margin:6px 0 0">「共享模型」= 你在「密钥管理」里配的平台共享模型，<strong>逐个用户开启后</strong>该用户才用得上（也才会在实例的「设置 → 模型设置」里出现）；默认关闭。开启即时生效（会重启该用户实例）。</p>
+
+        <h3 style="margin:22px 0 8px">存储用量 <span class="auth-sub" id="storageAt" style="font-weight:400"></span></h3>
+        <table class="admin">
+          <thead><tr><th>用户</th><th>工作区</th><th>会话</th><th>回收站</th><th>可清理</th></tr></thead>
+          <tbody id="storage"></tbody>
+        </table>
+        <p class="auth-sub" style="margin:6px 0 0">工作区达 <span id="thWs"></span> / 会话达 <span id="thSess"></span> 时由每日维护任务自动清理（工作区 90 天、会话 365 天前的记录；均先入回收站保留 30 天）。</p>
+      </div>
+    </div>
+
+    <script>
+      const badge = { admin: '管理员', pending: '待审核', active: '正常', disabled: '已禁用' }
+      function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
+      async function me() {
+        const res = await fetch('/api/auth/me')
+        return res.ok ? (await res.json()).user : null
+      }
+      async function loadUsers() {
+        const { users } = await (await fetch('/api/admin/users')).json()
+        const tbody = document.getElementById('users')
+        tbody.innerHTML = ''
+        for (const u of users) {
+          const actions = u.role === 'pending'
+            ? `<button class="btn small ghost" data-act="approve" data-id="${u.id}">通过</button>`
+            : u.role === 'active' ? `<button class="btn small danger" data-act="disable" data-id="${u.id}">禁用</button>`
+            : u.role === 'disabled' ? `<button class="btn small ghost" data-act="enable" data-id="${u.id}">恢复</button>` : ''
+          const del = u.role !== 'admin'
+            ? `<button class="btn small ghost" style="color:var(--danger)" data-act="del" data-id="${u.id}" data-name="${esc(u.username)}" title="删除用户">🗑</button>`
+            : ''
+          // 共享模型：admin 本人不需要（他自己配的就是"共享"的源头）⇒ 显示「—」；
+          // 待审核的人还没实例，开了也没意义 ⇒ 也显示「—」。其余用户可以开/关。
+          const grant = u.role === 'admin' || u.role === 'pending'
+            ? '<span class="badge">—</span>'
+            : u.sharedModelGranted
+              ? `<button class="btn small danger" data-act="grant-off" data-id="${u.id}" title="关闭该用户的平台共享模型">已开启</button>`
+              : `<button class="btn small ghost" data-act="grant-on" data-id="${u.id}" title="允许该用户使用平台共享模型">已关闭</button>`
+          tbody.insertAdjacentHTML('beforeend', `<tr><td>${esc(u.username)}</td><td><span class="badge ${u.role}">${badge[u.role] || u.role}</span></td><td>${grant}</td><td>${new Date(u.createdAt).toLocaleString()}</td><td>${actions}${actions && del ? ' ' : ''}${del}</td></tr>`)
+        }
+        tbody.onclick = async (event) => {
+          const btn = event.target.closest('button[data-act]')
+          if (!btn) return
+          const { act, id } = btn.dataset
+          if (act === 'del') {
+            const name = prompt(`删除后不可恢复。输入用户名「${btn.dataset.name}」以确认：`)
+            if (name !== btn.dataset.name) { alert('用户名不匹配，已取消'); return }
+            const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+            if (res.ok) await loadUsers()
+            else alert('删除失败（admin 账号不可删除）')
+            return
+          }
+          if (act === 'grant-on' || act === 'grant-off') {
+            const enabled = act === 'grant-on'
+            const res = await fetch(`/api/admin/users/${id}/models/shared`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ enabled }),
+            })
+            if (res.ok) await loadUsers()
+            else alert('操作失败')
+            return
+          }
+          const res = await fetch(`/api/admin/users/${id}/${act}`, { method: 'POST' })
+          if (res.ok) await loadUsers()
+          else alert('操作失败')
+        }
+      }
+      async function init() {
+        const u = await me()
+        if (u && u.role === 'admin') {
+          document.getElementById('login').classList.add('hidden')
+          document.getElementById('console').classList.remove('hidden')
+          document.getElementById('who').textContent = u.username
+          await loadUsers()
+        await loadStorage()
+        } else if (u) {
+          document.getElementById('sub').textContent = '该账号不是管理员'
+        } else {
+          document.getElementById('login').classList.remove('hidden')
+        }
+      }
+      document.getElementById('loginBtn').addEventListener('click', async () => {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ username: document.getElementById('username').value, password: document.getElementById('password').value }),
+        })
+        if (!res.ok) { document.getElementById('loginMsg').textContent = '用户名或密码错误'; return }
+        const { user } = await res.json()
+        if (user.role !== 'admin') { document.getElementById('loginMsg').textContent = '该账号不是管理员'; return }
+        await init()
+      })
+      function fmtB(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB' : (b / 1048576).toFixed(1) + ' MB' }
+      async function loadStorage() {
+        const tbody = document.getElementById('storage')
+        try {
+          const r = await (await fetch('/api/admin/storage')).json()
+          document.getElementById('storageAt').textContent = r.generatedAt ? `（更新于 ${new Date(r.generatedAt).toLocaleString()}）` : ''
+          if (r.thresholds) {
+            document.getElementById('thWs').textContent = r.thresholds.wsMB + ' MB'
+            document.getElementById('thSess').textContent = r.thresholds.sessionsMB + ' MB'
+          }
+          tbody.innerHTML = (r.users ?? []).map((u) => `<tr>
+            <td>${esc(u.username)}</td>
+            <td style="${u.wsOver ? 'color:var(--danger)' : ''}">${fmtB(u.ws)}</td>
+            <td style="${u.sessionsOver ? 'color:var(--danger)' : ''}">${fmtB(u.sessions)}</td>
+            <td>${fmtB(u.trash)}</td>
+            <td>${u.cleanableT1 + u.cleanableT2} 项 / ${fmtB(u.cleanableBytes)}</td>
+          </tr>`).join('') || `<tr><td colspan="5" class="auth-sub">${esc(r.note ?? '暂无数据')}</td></tr>`
+        } catch { tbody.innerHTML = '<tr><td colspan="5" class="auth-sub">读取失败</td></tr>' }
+      }
+      document.getElementById('logoutBtn').addEventListener('click', async () => { await fetch('/api/auth/logout', { method: 'POST' }); location.reload() })
+      init()
+    </script>
+  </body>
+</html>

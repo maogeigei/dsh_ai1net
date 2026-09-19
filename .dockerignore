@@ -1,0 +1,18 @@
+# Build context exclusions: keep only what `npm ci` + `tsc` (src, tsconfig,
+# package manifests) and the runtime (web, cordis.patch.yml) need.
+node_modules
+lib
+.git
+.github
+.gitignore
+data
+test
+scripts
+poc
+docs
+*.md
+*.db
+*.db-wal
+*.db-shm
+*.log
+.DS_Store

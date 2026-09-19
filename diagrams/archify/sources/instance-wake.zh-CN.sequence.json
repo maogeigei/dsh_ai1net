@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "实例唤醒与续接",
+    "locale": "zh-CN",
+    "viewBox": [
+      1080,
+      560
+    ],
+    "column_fit": "spread",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "detect",
+        "label": "发现实例已被回收",
+        "focus": [
+          "user",
+          "nginx",
+          "control",
+          "store"
+        ],
+        "note": "进程还不存在时，由控制面依据已保存的状态作答。"
+      },
+      {
+        "id": "wake",
+        "label": "拉起并绑定端口",
+        "focus": [
+          "control",
+          "instance"
+        ],
+        "note": "实例以其属主账号启动，并绑一个回环端口。"
+      },
+      {
+        "id": "resume",
+        "label": "续接会话",
+        "focus": [
+          "user",
+          "nginx",
+          "instance"
+        ],
+        "note": "端口就绪后，流量才被转发到实例。"
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "用户",
+      "sublabel": "浏览器会话"
+    },
+    {
+      "id": "nginx",
+      "type": "backend",
+      "label": "nginx",
+      "sublabel": "TLS 与路由"
+    },
+    {
+      "id": "control",
+      "type": "backend",
+      "label": "控制面",
+      "sublabel": "Fastify 进程"
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "SQLite",
+      "sublabel": "实例状态"
+    },
+    {
+      "id": "instance",
+      "type": "backend",
+      "label": "用户实例",
+      "sublabel": "harness 进程"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 258,
+      "label": "发现"
+    },
+    {
+      "from": 264,
+      "to": 314,
+      "label": "唤醒"
+    },
+    {
+      "from": 330,
+      "to": 436,
+      "label": "续接"
+    }
+  ],
+  "messages": [
+    {
+      "id": "open-instance",
+      "from": "user",
+      "to": "nginx",
+      "y": 160,
+      "label": "打开实例地址",
+      "variant": "emphasis"
+    },
+    {
+      "id": "route",
+      "from": "nginx",
+      "to": "control",
+      "y": 188,
+      "label": "按 Host 路由"
+    },
+    {
+      "id": "read-state",
+      "from": "control",
+      "to": "store",
+      "y": 216,
+      "label": "读实例状态"
+    },
+    {
+      "id": "state-reclaimed",
+      "from": "store",
+      "to": "control",
+      "y": 244,
+      "label": "已回收",
+      "variant": "return"
+    },
+    {
+      "id": "spawn",
+      "from": "control",
+      "to": "instance",
+      "y": 272,
+      "label": "以属主账号拉起",
+      "variant": "emphasis"
+    },
+    {
+      "id": "port-ready",
+      "from": "instance",
+      "to": "control",
+      "y": 300,
+      "label": "回环端口就绪",
+      "variant": "return"
+    },
+    {
+      "id": "wake-page",
+      "from": "control",
+      "to": "user",
+      "y": 340,
+      "label": "正在唤醒，请稍候重试",
+      "variant": "dashed"
+    },
+    {
+      "id": "retry",
+      "from": "user",
+      "to": "nginx",
+      "y": 368,
+      "label": "重试"
+    },
+    {
+      "id": "proxy",
+      "from": "nginx",
+      "to": "instance",
+      "y": 396,
+      "label": "转发 /u/<userId>/dsh/*",
+      "variant": "emphasis"
+    },
+    {
+      "id": "session-restored",
+      "from": "instance",
+      "to": "user",
+      "y": 424,
+      "label": "会话已续接",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "nginx",
+      "from": 180,
+      "to": 430,
+      "type": "backend"
+    },
+    {
+      "participant": "control",
+      "from": 188,
+      "to": 410,
+      "type": "backend"
+    },
+    {
+      "participant": "store",
+      "from": 210,
+      "to": 250,
+      "type": "database"
+    },
+    {
+      "participant": "instance",
+      "from": 268,
+      "to": 430,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "发现",
+      "items": [
+        "浏览器从不直接连实例端口",
+        "控制面依据已保存的状态判断进程是否存在",
+        "「已回收」是一个正常状态，不是错误"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "唤醒",
+      "items": [
+        "进程以属主自己的系统账号拉起",
+        "只绑回环端口，绝不绑公网端口",
+        "用户看到的是唤醒提示，而不是失败页"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "续接",
+      "items": [
+        "端口报就绪之后才转发流量",
+        "对话从上次停下的地方继续",
+        "唤醒、转发与限制是三件分开的事"
+      ]
+    }
+  ]
+}

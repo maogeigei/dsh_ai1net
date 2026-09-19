@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Overlay network",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "base-path",
+        "label": "The base path",
+        "focus": [
+          "browser",
+          "manager",
+          "relay",
+          "worker",
+          "inst"
+        ],
+        "note": "Every node dials out; the relay itself only listens on loopback."
+      },
+      {
+        "id": "direct-path",
+        "label": "Direct path",
+        "focus": [
+          "manager",
+          "worker",
+          "relay"
+        ],
+        "note": "Candidates ride a connection that already exists, and a direct path counts only when it works both ways."
+      },
+      {
+        "id": "trust-and-address",
+        "label": "Trust and address",
+        "focus": [
+          "onboarding",
+          "relay",
+          "manager"
+        ],
+        "note": "Whether a node may enter is decided locally; where it connects is a signed, rotatable handout."
+      }
+    ],
+    "viewBox": [
+      1310,
+      432
+    ]
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Browser",
+      "sublabel": "the user's own machine",
+      "pos": [
+        40,
+        80
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "manager",
+      "type": "backend",
+      "label": "Manager node",
+      "sublabel": "control plane",
+      "pos": [
+        380,
+        80
+      ],
+      "size": [
+        170,
+        84
+      ],
+      "tag": "dials out · loopback pool"
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Worker node",
+      "sublabel": "behind NAT · no inbound port",
+      "pos": [
+        720,
+        80
+      ],
+      "size": [
+        170,
+        84
+      ],
+      "tag": "dials out only"
+    },
+    {
+      "id": "content",
+      "type": "database",
+      "label": "Content plane",
+      "sublabel": "chunk store · peer fetch",
+      "pos": [
+        1060,
+        80
+      ],
+      "size": [
+        170,
+        80
+      ],
+      "tag": "group key · no plaintext at the relay"
+    },
+    {
+      "id": "onboarding",
+      "type": "security",
+      "label": "Trust and address",
+      "sublabel": "identity · signed directory",
+      "pos": [
+        40,
+        280
+      ],
+      "size": [
+        170,
+        80
+      ],
+      "tag": "local verdict · rotatable address"
+    },
+    {
+      "id": "relay",
+      "type": "backend",
+      "label": "Relay",
+      "sublabel": "rendezvous and multiplexing",
+      "pos": [
+        380,
+        280
+      ],
+      "size": [
+        170,
+        84
+      ],
+      "tag": "binds loopback only"
+    },
+    {
+      "id": "inst",
+      "type": "backend",
+      "label": "Instance",
+      "sublabel": "one OS account per user",
+      "pos": [
+        720,
+        280
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "loopback port only"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "No inbound port",
+      "wraps": [
+        "worker",
+        "inst"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-to-manager",
+      "from": "browser",
+      "to": "manager",
+      "label": "HTTPS",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "manager-to-worker",
+      "from": "manager",
+      "to": "worker",
+      "label": "direct once punched",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "worker-to-content",
+      "from": "worker",
+      "to": "content",
+      "label": "chunk exchange",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [
+        975,
+        120
+      ]
+    },
+    {
+      "id": "manager-to-relay",
+      "from": "manager",
+      "to": "relay",
+      "label": "dials out · mux",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        465,
+        222
+      ]
+    },
+    {
+      "id": "worker-to-relay",
+      "from": "worker",
+      "to": "relay",
+      "label": "dials out · mux",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "worker-to-inst",
+      "from": "worker",
+      "to": "inst",
+      "label": "loopback",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        805,
+        222
+      ]
+    },
+    {
+      "id": "onboarding-to-relay",
+      "from": "onboarding",
+      "to": "relay",
+      "label": "admits · gives the address",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [
+        295,
+        320
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Reachable without an inbound port",
+      "items": [
+        "A worker behind NAT opens no listening port: one outbound connection carries every stream",
+        "The relay binds loopback only, so adding nodes adds no public surface",
+        "The address stays an ordinary host and port, so the transport can be swapped without touching the request path"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Identity decides before address does",
+      "items": [
+        "Four layers: an offline root authorises signers, signers issue node credentials, each node holds one key, sessions use an in-memory key",
+        "Whether a node may join is verified on the node itself, so a compromised control plane cannot silently insert one",
+        "Anything unverifiable is refused with a named reason — never a silent fall back to a shared credential or default host"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Direct is an optimisation, never a requirement",
+      "items": [
+        "Candidate endpoints ride the connection that already exists, so the direct path adds no port and no protocol",
+        "A direct path counts only when both directions work; otherwise it falls back by name — off, cooling down, no address, one-way, past the deadline",
+        "Switching it off is not a loss of function: joining and admission still work, the traffic keeps going through the relay"
+      ]
+    }
+  ]
+}

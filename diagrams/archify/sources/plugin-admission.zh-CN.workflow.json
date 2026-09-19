@@ -1,0 +1,212 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "插件准入",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      950,
+      528
+    ],
+    "views": [
+      {
+        "id": "intake",
+        "label": "收件",
+        "focus": [
+          "pool",
+          "precheck"
+        ],
+        "note": "插件先进入候选池并接受检查，之后才可能被启用。"
+      },
+      {
+        "id": "enablement",
+        "label": "启用",
+        "focus": [
+          "admit",
+          "install",
+          "enable",
+          "probe"
+        ],
+        "note": "放行之后安装进实例、按用户启用，使用前再探活。"
+      },
+      {
+        "id": "porting",
+        "label": "改造回路",
+        "focus": [
+          "precheck",
+          "port",
+          "pool"
+        ],
+        "note": "预检不通过的插件由作者改造后重新提交，再走一遍检查。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "platform",
+      "label": "平台（管理员维护）"
+    },
+    {
+      "id": "instance",
+      "label": "用户实例"
+    },
+    {
+      "id": "author",
+      "label": "插件作者",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "收件",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "verify",
+      "label": "校验与启用",
+      "fromCol": 1,
+      "toCol": 5,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": [
+    "pool",
+    "precheck",
+    "admit",
+    "install",
+    "enable",
+    "probe"
+  ],
+  "nodes": [
+    {
+      "id": "pool",
+      "lane": "platform",
+      "col": 0,
+      "type": "database",
+      "label": "候选池",
+      "sublabel": "管理员添加"
+    },
+    {
+      "id": "precheck",
+      "lane": "platform",
+      "col": 1,
+      "type": "security",
+      "label": "兼容预检",
+      "sublabel": "声明 vs 实际"
+    },
+    {
+      "id": "admit",
+      "lane": "platform",
+      "col": 2,
+      "type": "security",
+      "label": "放行",
+      "sublabel": "已批准"
+    },
+    {
+      "id": "install",
+      "lane": "platform",
+      "col": 3,
+      "type": "backend",
+      "label": "安装",
+      "sublabel": "装进 profile"
+    },
+    {
+      "id": "enable",
+      "lane": "instance",
+      "col": 4,
+      "type": "frontend",
+      "label": "启用",
+      "sublabel": "每用户"
+    },
+    {
+      "id": "probe",
+      "lane": "instance",
+      "col": 5,
+      "type": "backend",
+      "label": "探活",
+      "sublabel": "使用中"
+    },
+    {
+      "id": "port",
+      "lane": "author",
+      "col": 1,
+      "type": "external",
+      "label": "改造适配",
+      "sublabel": "socket、路径、懒加载",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "from": "pool",
+      "to": "precheck",
+      "label": "检查",
+      "variant": "emphasis"
+    },
+    {
+      "from": "precheck",
+      "to": "admit",
+      "label": "通过",
+      "variant": "emphasis"
+    },
+    {
+      "from": "admit",
+      "to": "install",
+      "label": "开放",
+      "variant": "security"
+    },
+    {
+      "from": "install",
+      "to": "enable",
+      "variant": "emphasis"
+    },
+    {
+      "from": "enable",
+      "to": "probe",
+      "variant": "emphasis"
+    },
+    {
+      "from": "precheck",
+      "to": "port",
+      "label": "不通过",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "port",
+      "to": "pool",
+      "label": "重新提交",
+      "variant": "dashed",
+      "role": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "进来的都先检查过",
+      "items": [
+        "插件只来自管理员维护的候选池，不从互联网直接引入",
+        "版本不匹配会在触达运行中的实例之前被拒绝"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "启用后是隔离的",
+      "items": [
+        "启用是每用户自己的选择",
+        "每个插件单独探活，一个失败不会拖垮整个实例"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "不通过只是中间一步",
+      "items": [
+        "预检不通过的插件会回到作者手里改造，而不是直接拒掉",
+        "这个回路通常要走不止一次：改造是迭代的"
+      ]
+    }
+  ]
+}

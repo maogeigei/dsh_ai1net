@@ -1,0 +1,17 @@
+node_modules/
+lib/
+data/
+dist-web/
+*.log
+*.db
+*.db-wal
+*.db-shm
+*.local.db
+.DS_Store
+
+# 改码前的就地备份（不应入库）
+*.bak-*
+
+# 本机真实部署配置（含域名 / 地址 / 凭据）—— 只入库 config/platform.env.example 模板
+config/platform.env
+config/*.env.local

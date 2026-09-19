@@ -1,0 +1,215 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Plugin admission",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      950,
+      528
+    ],
+    "views": [
+      {
+        "id": "intake",
+        "label": "Intake",
+        "focus": [
+          "pool",
+          "precheck"
+        ],
+        "note": "A plugin enters the candidate pool and is examined before anyone can enable it."
+      },
+      {
+        "id": "enablement",
+        "label": "Enablement",
+        "focus": [
+          "admit",
+          "install",
+          "enable",
+          "probe"
+        ],
+        "note": "An admitted plugin is installed, enabled per user, then probed before use."
+      },
+      {
+        "id": "porting",
+        "label": "Porting loop",
+        "focus": [
+          "precheck",
+          "port",
+          "pool"
+        ],
+        "note": "A plugin that fails the pre-check is adapted by its author and re-submitted, then examined again."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "platform",
+      "label": "Platform, admin-managed"
+    },
+    {
+      "id": "instance",
+      "label": "User instance"
+    },
+    {
+      "id": "author",
+      "label": "Plugin author",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "Intake",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "verify",
+      "label": "Verify and enable",
+      "fromCol": 1,
+      "toCol": 5,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": [
+    "pool",
+    "precheck",
+    "admit",
+    "install",
+    "enable",
+    "probe"
+  ],
+  "nodes": [
+    {
+      "id": "pool",
+      "lane": "platform",
+      "col": 0,
+      "type": "database",
+      "label": "Candidate pool",
+      "sublabel": "admin adds"
+    },
+    {
+      "id": "precheck",
+      "lane": "platform",
+      "col": 1,
+      "type": "security",
+      "label": "Pre-check",
+      "sublabel": "declared vs actual"
+    },
+    {
+      "id": "admit",
+      "lane": "platform",
+      "col": 2,
+      "type": "security",
+      "label": "Admit",
+      "sublabel": "approved"
+    },
+    {
+      "id": "install",
+      "lane": "platform",
+      "col": 3,
+      "type": "backend",
+      "label": "Install",
+      "sublabel": "into profile"
+    },
+    {
+      "id": "enable",
+      "lane": "instance",
+      "col": 4,
+      "type": "frontend",
+      "label": "Enable",
+      "sublabel": "per user"
+    },
+    {
+      "id": "probe",
+      "lane": "instance",
+      "col": 5,
+      "type": "backend",
+      "label": "Probe",
+      "sublabel": "in use"
+    },
+    {
+      "id": "port",
+      "lane": "author",
+      "col": 1,
+      "type": "external",
+      "label": "Port for hosting",
+      "sublabel": "socket, paths, lazy",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "from": "pool",
+      "to": "precheck",
+      "label": "examine",
+      "variant": "emphasis"
+    },
+    {
+      "from": "precheck",
+      "to": "admit",
+      "label": "ok",
+      "variant": "emphasis"
+    },
+    {
+      "from": "admit",
+      "to": "install",
+      "label": "released",
+      "variant": "security"
+    },
+    {
+      "from": "install",
+      "to": "enable",
+      "variant": "emphasis"
+    },
+    {
+      "from": "enable",
+      "to": "probe",
+      "variant": "emphasis"
+    },
+    {
+      "from": "precheck",
+      "to": "port",
+      "label": "not ok",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "port",
+      "to": "pool",
+      "label": "re-submit",
+      "variant": "dashed",
+      "role": "return",
+      "route": "return-left",
+      "fromSide": "left",
+      "toSide": "left"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Nothing arrives unexamined",
+      "items": [
+        "Plugins come from an administrator-managed pool, never straight from the internet",
+        "A compatibility mismatch is rejected before it reaches a running instance"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Isolated once enabled",
+      "items": [
+        "Enabling is a per-user choice",
+        "Each plugin is probed alone, so one failure cannot take the instance down"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Failing is a step, not a dead end",
+      "items": [
+        "A plugin that fails the pre-check goes back to its author to be adapted",
+        "The loop usually runs more than once: adapting is iterative"
+      ]
+    }
+  ]
+}

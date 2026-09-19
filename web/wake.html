@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title data-i18n="wake.title">Starting your workspace</title>
+<link rel="stylesheet" href="/design.css" />
+<!-- R5：平台多语言运行时（默认英语） -->
+<script src="/i18n.js"></script>
+<style>
+  /* 「AI 核心」加载体 —— 与实例页恢复浮层**同一套视觉语言**（配色跟随平台主题） */
+  .wk-orb{position:relative;width:86px;height:86px;margin:2px auto 16px}
+  .wk-halo{position:absolute;inset:-18px;border-radius:50%;
+    background:radial-gradient(circle, rgba(83,74,183,.20), rgba(139,124,246,.12) 46%, transparent 70%);
+    animation:wk-halo 2.6s ease-in-out infinite}
+  .wk-arc{position:absolute;inset:0;border-radius:50%;
+    background:conic-gradient(from 0deg, rgba(83,74,183,0) 0deg, rgba(83,74,183,.05) 110deg, #534AB7 296deg, #8B7CF6 342deg, rgba(139,124,246,0) 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    animation:wk-spin 1.5s linear infinite}
+  .wk-arc2{position:absolute;inset:13px;border-radius:50%;border:1px dashed rgba(139,124,246,.42);
+    animation:wk-spin-rev 7s linear infinite}
+  .wk-ring{position:absolute;inset:24px;border-radius:50%;border:1px solid rgba(83,74,183,.18)}
+  .wk-core{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;
+    background:radial-gradient(circle, #ffffff 0%, #6B5FD6 46%, rgba(83,74,183,0) 74%);
+    box-shadow:0 0 12px rgba(83,74,183,.55), 0 0 30px rgba(139,124,246,.35);
+    animation:wk-core 1.6s ease-in-out infinite}
+  .wk-dots{position:absolute;inset:0;animation:wk-spin 3.4s linear infinite}
+  .wk-dots i{position:absolute;left:50%;top:-2px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;
+    background:#8B7CF6;box-shadow:0 0 8px #8B7CF6;animation:wk-dot 1.4s ease-in-out infinite}
+  .wk-dots i:nth-child(2){top:auto;bottom:-2px;animation-delay:.35s;background:#534AB7;box-shadow:0 0 8px #534AB7}
+  .wk-dots i:nth-child(3){left:-2px;top:50%;margin:-2.5px 0 0 0;animation-delay:.7s;background:#4FBFA8;box-shadow:0 0 8px #4FBFA8}
+  @keyframes wk-spin{to{transform:rotate(360deg)}}
+  @keyframes wk-spin-rev{to{transform:rotate(-360deg)}}
+  @keyframes wk-core{0%,100%{transform:scale(.82);opacity:.6}50%{transform:scale(1.12);opacity:1}}
+  @keyframes wk-halo{0%,100%{opacity:.45;transform:scale(.96)}50%{opacity:.9;transform:scale(1.04)}}
+  @keyframes wk-dot{0%,100%{opacity:.25}50%{opacity:1}}
+  @keyframes wkb{0%{margin-left:-40%}100%{margin-left:100%}}
+  .wk-bar{height:4px;border-radius:999px;background:rgba(127,127,127,.18);overflow:hidden;margin:16px 0 8px}
+  .wk-bar > i{display:block;height:100%;width:40%;border-radius:999px;
+    background:linear-gradient(90deg, rgba(83,74,183,0), #534AB7 45%, #8B7CF6 70%, rgba(83,74,183,0));
+    animation:wkb 1.6s ease-in-out infinite}
+  .wk-label{font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em;
+    color:#8a8f98;text-transform:uppercase;margin-bottom:10px}
+  .wk-step{font-size:13px;color:#8a8f98;min-height:20px;text-align:center}
+  .wk-acts{margin-top:16px;text-align:center}
+  .wk-note{margin-top:14px;font-size:12px;line-height:1.7;color:#8a8f98;text-align:center}
+  @media (prefers-reduced-motion: reduce){
+    .wk-arc,.wk-arc2,.wk-dots,.wk-dots i,.wk-core,.wk-halo,.wk-bar > i{animation:none!important}
+  }
+</style>
+</head>
+<body>
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px">
+    <div class="card" style="max-width:420px;width:100%;text-align:center">
+      <div class="wk-orb" id="spin">
+        <div class="wk-halo"></div><div class="wk-arc"></div><div class="wk-arc2"></div>
+        <div class="wk-ring"></div><div class="wk-core"></div>
+        <div class="wk-dots"><i></i><i></i><i></i></div>
+      </div>
+      <h1 class="page-title" style="margin-bottom:6px" data-i18n="wake.h1">Starting your workspace…</h1>
+      <p class="page-sub" style="margin-bottom:0" data-i18n="wake.sub">Idle instances get reclaimed; the first visit takes a few seconds to spin it back up.</p>
+      <div class="wk-bar"><i></i></div>
+      <div class="wk-step" id="step" data-i18n="wake.connecting">Connecting…</div>
+      <div class="wk-label">dsh · auto recovery</div>
+      <div class="wk-acts" id="acts" style="display:none">
+        <button class="btn primary" id="retry" data-i18n="common.retry">Retry</button>
+      </div>
+      <p class="wk-note" id="note" data-i18n="wake.note">
+        If nothing happens for a while, click “Retry”. This page redirects automatically — no manual refresh needed.
+      </p>
+    </div>
+  </div>
+<script>
+(function () {
+  var NEXT = new URLSearchParams(location.search).get('next') || ''
+  var step = document.getElementById('step')
+  var acts = document.getElementById('acts')
+  var note = document.getElementById('note')
+  var tried = 0
+  var MAX = 3
+
+  function show(text) { step.textContent = text }
+
+  function fail(msg) {
+    document.getElementById('spin').style.display = 'none'
+    acts.style.display = 'block'
+    note.textContent = msg
+    show(I18N.t('wake.failed'))
+  }
+
+  // 只允许跳回**本站注册域**（运行时从 hostname 推导，⛔ 不写死域名）。
+  // 规则：去掉最左一段即到注册域 —— `guest.example.com` ⇒ `example.com`。
+  function registrableDomain() {
+    var h = location.hostname
+    if (!h || h === 'localhost' || /^\d+(\.\d+){3}$/.test(h)) return h
+    var parts = h.split('.')
+    return parts.length > 2 ? parts.slice(1).join('.') : h
+  }
+  function safeNext(u) {
+    try {
+      var x = new URL(u, location.href)
+      var d = registrableDomain()
+      if (!d) return ''
+      var hop = '.' + d
+      return x.hostname === d || x.hostname.slice(-hop.length) === hop ? x.href : ''
+    } catch (e) { return '' }
+  }
+
+  async function wake() {
+    tried += 1
+    show(tried === 1 ? I18N.t('wake.launching') : I18N.t('wake.retrying', { n: tried }))
+    try {
+      // 复用平台已有的登录直达接口：它内部会 launch（实例不在则拉起）并返回带 token 的直达 URL
+      var res = await fetch('/api/dsh/enter', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (res.status === 401) { location.replace('/login.html'); return }
+      var j = await res.json().catch(function () { return {} })
+      var url = j.url || j.redirect || ''
+      if (res.ok && url) {
+        show(I18N.t('wake.ready'))
+        location.replace(url)
+        return
+      }
+      if (res.ok && !url) {                 // 已登录但需要重走门户
+        location.replace('/portal.html')
+        return
+      }
+      if (j.error === 'instance_circuit_open') {   // 被熔断冷却，重试没有意义
+        var waitMin = Math.max(1, Math.ceil((j.retryAfterMs || 0) / 60000))
+        fail(I18N.t('wake.circuit', { min: waitMin }))
+        return
+      }
+      throw new Error(j.error || ('HTTP ' + res.status))
+    } catch (err) {
+      if (tried < MAX) {
+        show(I18N.t('wake.notReady'))
+        setTimeout(wake, 2000)
+      } else {
+        fail(I18N.t('wake.giveUp', { msg: (err && err.message ? err.message : I18N.t('wake.unknownErr')) }))
+      }
+    }
+  }
+
+  document.getElementById('retry').addEventListener('click', function () {
+    tried = 0
+    document.getElementById('spin').style.display = ''
+    acts.style.display = 'none'
+    note.textContent = I18N.t('wake.noteShort')
+    wake()
+  })
+
+  // 若 nginx 带了 next（原始目标地址），唤醒后优先回那里
+  var saved = safeNext(NEXT)
+  if (saved) { sessionStorage.setItem('dsh.wake.next', saved) }
+
+  var t = setInterval(function () {
+    var n = sessionStorage.getItem('dsh.wake.next')
+    if (n && n !== NEXT) {
+      clearInterval(t)
+      // 直接以原始目标为跳转终点（进入后再由实例侧校验 token）
+      NEXT = n
+    }
+  }, 1000)
+  setTimeout(function () { clearInterval(t) }, 30000)
+
+  wake()
+})()
+</script>
+</body>
+</html>

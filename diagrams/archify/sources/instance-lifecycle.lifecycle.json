@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Instance lifecycle",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "main-lifecycle",
+        "label": "Main lifecycle",
+        "focus": [
+          "cold",
+          "provisioning",
+          "serving",
+          "idle",
+          "reclaimed"
+        ],
+        "note": "From first start to a reclaimed workspace."
+      },
+      {
+        "id": "return",
+        "label": "Returning to a reclaimed instance",
+        "focus": [
+          "reclaimed",
+          "provisioning",
+          "serving"
+        ],
+        "note": "A reclaimed workspace is started again rather than rebuilt."
+      }
+    ],
+    "viewBox": [
+      1140,
+      660
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Lifecycle phases"
+    },
+    {
+      "id": "recover",
+      "label": "Recovery"
+    }
+  ],
+  "states": [
+    {
+      "id": "cold",
+      "type": "start",
+      "label": "Not started",
+      "lane": "main",
+      "col": 0
+    },
+    {
+      "id": "provisioning",
+      "type": "active",
+      "label": "Starting",
+      "lane": "main",
+      "col": 1
+    },
+    {
+      "id": "serving",
+      "type": "active",
+      "label": "Serving",
+      "lane": "main",
+      "col": 2
+    },
+    {
+      "id": "idle",
+      "type": "waiting",
+      "label": "Idle",
+      "lane": "main",
+      "col": 3
+    },
+    {
+      "id": "reclaimed",
+      "type": "waiting",
+      "label": "Reclaimed",
+      "lane": "main",
+      "col": 4
+    },
+    {
+      "id": "crashed",
+      "type": "failure",
+      "label": "Crashed",
+      "lane": "recover",
+      "col": 0
+    }
+  ],
+  "transitions": [
+    {
+      "id": "t1",
+      "from": "cold",
+      "to": "provisioning",
+      "route": "straight"
+    },
+    {
+      "id": "t2",
+      "from": "provisioning",
+      "to": "serving",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "t3",
+      "from": "serving",
+      "to": "idle",
+      "route": "straight"
+    },
+    {
+      "id": "t4",
+      "from": "idle",
+      "to": "reclaimed",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "t5",
+      "from": "reclaimed",
+      "to": "provisioning",
+      "variant": "emphasis",
+      "route": "top-channel",
+      "label": "on return"
+    },
+    {
+      "id": "t6",
+      "from": "serving",
+      "to": "crashed",
+      "variant": "security",
+      "route": "bottom-channel"
+    },
+    {
+      "id": "t7",
+      "from": "crashed",
+      "to": "provisioning",
+      "variant": "emphasis",
+      "route": "bottom-channel",
+      "label": "retry"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Main lifecycle",
+      "items": [
+        "A workspace starts on first use and stays resident while in use",
+        "Idle time makes its memory reclaimable; reclaiming returns memory without discarding the workspace"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Return and recovery",
+      "items": [
+        "Returning to a reclaimed instance starts it again on demand, and the conversation continues",
+        "A crash is repaired in place; repeated crashes widen the interval and starts are refused during it"
+      ]
+    }
+  ]
+}

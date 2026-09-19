@@ -1,0 +1,1098 @@
+diff --git a/package.json b/package.json
+index 7c31513..74462a7 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "dsh-univer-office",
+-  "version": "0.2.14",
++  "version": "0.2.27",
+   "description": "DSH × Univer integration with a bundled collaboration Gateway and Viewer: inline previews, live floating Worktree windows, and session-end review actions in DeepSeek Harness.",
+   "type": "module",
+   "main": "./lib/index.js",
+@@ -57,8 +57,7 @@
+         "@deepseek-ai/dsh-client-ui-conversation",
+         "@deepseek-ai/dsh-client-ui-renderer",
+         "@deepseek-ai/dsh-client-ui-session",
+-        "@deepseek-ai/dsh-client-ui-settings",
+-        "@deepseek-ai/dsh-client-ui-settings-plugins"
++        "@deepseek-ai/dsh-client-ui-settings"
+       ]
+     }
+   },
+diff --git a/scripts/build.mjs b/scripts/build.mjs
+index 27b9c51..b92c3fe 100644
+--- a/scripts/build.mjs
++++ b/scripts/build.mjs
+@@ -8,10 +8,11 @@
+ //   pnpm run build:render  → artifacts/render-machine/
+ //   pnpm run build:viewer  → artifacts/viewer/
+ //   pnpm run build         → all five applications
++import { existsSync } from 'node:fs'
+ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+ import { execFileSync } from 'node:child_process'
+ import { builtinModules, createRequire } from 'node:module'
+-import { resolve } from 'node:path'
++import { join, resolve } from 'node:path'
+ import react from '@vitejs/plugin-react'
+ import tailwindcss from '@tailwindcss/vite'
+ import { build } from 'esbuild'
+@@ -119,12 +120,63 @@ if (target === 'all' || target === 'lib') {
+   console.log('built lib/index.js + lib/client.js + lib/telemetry-entry.js')
+ }
+ 
++/**
++ * 宿主兼容（2026-09-13）：把 `@univerjs-pro/engine-formula-rust` 换成仓库内的垫片。
++ *
++ * 宿主机 glibc < 2.35 时该包的 linux-x64 原生绑定（要求 `GLIBC_2.35`）装不上，内容投影会整进程崩。
++ * 垫片同名导出上游的一切，只在**绑定确实装不上**时强制 `useRustEngine: false`（回落 JS 公式引擎）；
++ * 绑定可用时行为与上游完全一致（宿主机 glibc 升级后自动恢复，无需改代码）。
++ * **作用于 worker + gateway 两个构建**：host（lib）不含该插件（只 `require.resolve` 取路径，不加载）。
++ * ⚠️ 2026-09-13 实测纠正：网关在**提交 changeset** 时也会建 workbook 投影，绑定装不上会让**网关整进程崩**（症状：写入报错但数据已落盘）。
++ *
++ * ⚠️ 垫片自己要 `import * as rustEngine from '@univerjs-pro/engine-formula-rust'` 拿真实实现，
++ * 必须对垫片本身放行，否则自我递归。
++ */
++function rustFormulaEngineHostCompat() {
++  const shimSource = resolve('src/workers/unit-content/rust-formula-engine-host-compat.ts')
++  const namespace = 'uvcompat'
++  // 该包是本仓库的**传递依赖**（只有 SDK 包直接依赖它）⇒ 顶层 node_modules 里没有软链，
++  // 垫片源码里的裸 import 从 `src/` 解析不到。把垫片作为虚拟模块加载、并把 `resolveDir` 指向
++  // pnpm 的提升目录（其父目录 `.pnpm` 的 node_modules 里就有该包；与运行期 NODE_PATH 同源）。
++  const shimResolveDir = resolve('node_modules/.pnpm/node_modules')
++  // ⚠️ CJS 产物（gateway）必须显式用该包的 **CJS 入口**：它的 ESM 入口靠 `import.meta.url` 定位原生绑定，
++  // 在 CJS 里 `import.meta` 被降级成空对象 ⇒ `createRequire(undefined)` ⇒ **网关启动即崩**
++  // （ERR_INVALID_ARG_VALUE，2026-09-13 实测）。ESM 产物（worker）保持默认解析（走 import 条件）。
++  const realCjsEntry = join(
++    shimResolveDir,
++    '@univerjs-pro/engine-formula-rust/lib/cjs/index.cjs'
++  )
++  return {
++    name: 'rust-formula-engine-host-compat',
++    setup(build) {
++      build.onResolve({ filter: /^@univerjs-pro\/engine-formula-rust$/ }, (args) => {
++        if (args.namespace === namespace) {
++          // 垫片自己拿真实实现
++          if (build.initialOptions.format !== 'cjs') return undefined
++          if (!existsSync(realCjsEntry)) {
++            throw new Error('host-compat shim cannot locate ' + realCjsEntry)
++          }
++          return { path: realCjsEntry }
++        }
++        return { path: 'host-compat', namespace }
++      })
++      build.onLoad({ filter: /.*/, namespace }, async () => ({
++        contents: await readFile(shimSource, 'utf8'),
++        loader: 'ts',
++        resolveDir: shimResolveDir
++      }))
++    }
++  }
++}
++
+ if (target === 'all' || target === 'worker') {
+   // Unit-content worker: a standalone process built from src/workers/unit-content
+   // with the SDK dependencies inlined (except the platform binary packages, which
+   // are resolved at runtime from the plugin's node_modules).
+   const workerOut = 'artifacts/unit-content-worker.mjs'
+   const workerExternal = [
++    // ws 必须 external：内联版会撞 esbuild 的 __require（Dynamic require of "events" is not supported）
++    'ws',
+     ...builtinModules.map((id) => `node:${id}`),
+     ...builtinModules,
+     '@univerjs-pro/cli-assets',
+@@ -142,7 +194,8 @@ if (target === 'all' || target === 'worker') {
+     target: 'node22.19',
+     format: 'esm',
+     legalComments: 'none',
+-    sourcemap: false
++    sourcemap: false,
++    plugins: [rustFormulaEngineHostCompat()]
+   })
+   console.log('built', workerOut)
+ }
+@@ -173,7 +226,10 @@ if (target === 'all' || target === 'gateway') {
+     target: 'node22',
+     format: 'cjs',
+     legalComments: 'none',
+-    sourcemap: false
++    sourcemap: false,
++    // 与 worker 同理：**网关在提交 changeset 时也会建 workbook 投影** ⇒ 绑定装不上就整进程崩，
++    // 表现为「写入报错但数据已落盘」（客户端读不到响应：连接被重置）。2026-09-13 实测复现。
++    plugins: [rustFormulaEngineHostCompat()]
+   })
+   console.log('built', gatewayOut)
+ }
+diff --git a/src/gateway-app/gateway-entry.ts b/src/gateway-app/gateway-entry.ts
+index 4b22b82..70bbd6a 100644
+--- a/src/gateway-app/gateway-entry.ts
++++ b/src/gateway-app/gateway-entry.ts
+@@ -3,20 +3,26 @@ import { GATEWAY_PORT_IN_USE_EXIT_CODE } from '../shared/gateway-process-protoco
+ import { startServer } from './server.js'
+ 
+ // DSH plugin gateway entry: bridges the plugin launcher environment
+-// (UNIVER_COLLAB_GATEWAY_PORT / UNIVER_VIEW_ASSETS_ROOT) to the SDK
+-// startServer contract, and serves the bundled Viewer for health checks.
++// (UNIVER_COLLAB_GATEWAY_PORT / UNIVER_COLLAB_GATEWAY_SOCKET / UNIVER_VIEW_ASSETS_ROOT)
++// to the SDK startServer contract, and serves the bundled Viewer for health checks.
+ async function main(): Promise<void> {
+   const port = Number(process.env.UNIVER_COLLAB_GATEWAY_PORT ?? 9080)
++  const socketPath = process.env.UNIVER_COLLAB_GATEWAY_SOCKET
+   const viewAssetsRoot = process.env.UNIVER_VIEW_ASSETS_ROOT
+   const allowedRoot = process.env.UNIVER_ALLOWED_ROOT
+ 
+   const server = await startServer({
+     port,
++    ...(socketPath === undefined ? {} : { socketPath }),
+     ...(viewAssetsRoot === undefined ? {} : { viewAssetsRoot }),
+     ...(allowedRoot === undefined ? {} : { allowedRoot })
+   })
+ 
+-  process.stdout.write(`[dsh-univer-gateway] listening on http://127.0.0.1:${server.port}\n`)
++  process.stdout.write(
++    `[dsh-univer-gateway] listening on ${
++      socketPath === undefined ? `http://127.0.0.1:${server.port}` : `unix:${socketPath}`
++    }\n`
++  )
+ }
+ 
+ main().catch((error: unknown) => {
+diff --git a/src/gateway-app/main.ts b/src/gateway-app/main.ts
+index e177d1d..7da8f94 100644
+--- a/src/gateway-app/main.ts
++++ b/src/gateway-app/main.ts
+@@ -3,18 +3,27 @@ import { startServer } from './server.js'
+ 
+ async function main(): Promise<void> {
+   const port = Number(process.env.PORT ?? 8000)
++  const socketPath = process.env.SOCKET_PATH
++  const host = process.env.HOST
+   const allowedRoot = process.env.ALLOWED_ROOT
+   const idleTtlMs =
+     process.env.IDLE_TTL_MS === undefined ? undefined : Number(process.env.IDLE_TTL_MS)
+ 
+   const server = await startServer({
+     port,
++    ...(socketPath === undefined ? {} : { socketPath }),
++    ...(host === undefined ? {} : { host }),
+     ...(allowedRoot === undefined ? {} : { allowedRoot }),
+     ...(idleTtlMs === undefined ? {} : { idleTtlMs })
+   })
+ 
+-  const origin = `http://127.0.0.1:${server.port}`
+-  const wsOrigin = `ws://127.0.0.1:${server.port}`
++  // A unix socket has no origin of its own; the host addresses it by path.
++  const origin =
++    socketPath === undefined
++      ? `http://${host ?? '127.0.0.1'}:${server.port}`
++      : `unix:${socketPath}`
++  const wsOrigin =
++    socketPath === undefined ? `ws://${host ?? '127.0.0.1'}:${server.port}` : `ws:unix`
+   process.stdout.write(
+     `[ucb-server] listening on ${origin}${
+       allowedRoot === undefined ? '' : `  (allowedRoot: ${allowedRoot})`
+diff --git a/src/gateway-app/server.ts b/src/gateway-app/server.ts
+index 607cdb7..b250cc8 100644
+--- a/src/gateway-app/server.ts
++++ b/src/gateway-app/server.ts
+@@ -1,3 +1,4 @@
++import { rmSync } from 'node:fs'
+ import type { AddressInfo } from 'node:net'
+ import { stat } from 'node:fs/promises'
+ import http from 'node:http'
+@@ -8,11 +9,24 @@ import { attachGatewayWebSockets } from './transport/ws.js'
+ import type { UniverfileManagerOptions } from './univerfile-manager.js'
+ import { UniverfileManager } from './univerfile-manager.js'
+ 
+-const LOOPBACK_HOST = '127.0.0.1'
++const DEFAULT_LOOPBACK_HOST = '127.0.0.1'
++const DEFAULT_PORT = 8000
+ 
+ export interface StartServerOptions {
+-  /** TCP port; 0 lets the OS pick. Default 8000. */
++  /** TCP port; 0 lets the OS pick. Default 8000. Ignored when `socketPath` is set. */
+   readonly port?: number
++  /**
++   * Listen on a unix domain socket instead of TCP.
++   *
++   * Needed on sandboxed multi-tenant hosts whose egress rules reject `connect()` to
++   * `127.0.0.0/8`: the gateway is a child of the DSH host process and therefore runs under
++   * the same uid as the rule's match set, so loopback TCP is unreachable even for the host
++   * that spawned it. A unix socket is resolved through the filesystem, bypassing the network
++   * layer entirely — no port is exposed, and there is nothing for a firewall to block.
++   */
++  readonly socketPath?: string
++  /** TCP bind host. Defaults to 127.0.0.1. Ignored when `socketPath` is set. */
++  readonly host?: string
+   /** Confine every addressed `univerfile` under this directory. */
+   readonly allowedRoot?: string
+   /** Evict univerfiles idle (and with no live connections) after this many ms. */
+@@ -24,7 +38,10 @@ export interface StartServerOptions {
+ export interface StartedServer {
+   readonly manager: UniverfileManager
+   readonly httpServer: http.Server
++  /** TCP port; 0 when listening on a unix socket. */
+   readonly port: number
++  /** Set only when listening on a unix domain socket. */
++  readonly socketPath?: string
+   close(): Promise<void>
+ }
+ 
+@@ -43,12 +60,19 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
+   )
+   const wss = attachGatewayWebSockets(httpServer, manager)
+ 
+-  const port = await listen(httpServer, options.port ?? 8000)
++  startIdleWatchdog({ httpServer, wss })
++
++  const bound = await listen(httpServer, {
++    port: options.port ?? DEFAULT_PORT,
++    ...(options.host === undefined ? {} : { host: options.host }),
++    ...(options.socketPath === undefined ? {} : { socketPath: options.socketPath })
++  })
+ 
+   return {
+     manager,
+     httpServer,
+-    port,
++    port: bound.port,
++    ...(options.socketPath === undefined ? {} : { socketPath: options.socketPath }),
+     // Force-close: viewer pages hold long-lived event/comb sockets that never end on their
+     // own; shutdown must not wait for clients to disconnect.
+     close: async () => {
+@@ -66,6 +90,42 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
+   }
+ }
+ 
++/**
++ * Idle watchdog（2026-09-13 · 方案 E）：**没有任何请求、也没有活跃 WS 客户端**且静默超过阈值时，
++ * 让 gateway **自行退出**，把 ~390 MB 内存还给实例；下次需要时由 host 的
++ * `GatewaySupervisor.ensure()`（每次都会先探活）自动重新拉起。
++ *
++ * 为什么必须放在 gateway 侧：浏览器与 unit-content-worker 都是**直接走 unix socket** 的，
++ * host 看不到这部分流量 ⇒ 在 host 侧判空闲会把"忙"误判成"闲"，可能把正在编辑的 gateway 停掉。
++ * 阈值：env `UNIVER_DSH_GATEWAY_IDLE_MS`（默认 600000 = 10 分钟；**0 = 关闭本机制**）。
++ */
++function startIdleWatchdog(input: {
++  readonly httpServer: http.Server
++  readonly wss: { readonly clients: Set<unknown> }
++}): void {
++  const idleMs = Number(process.env.UNIVER_DSH_GATEWAY_IDLE_MS ?? '600000')
++  if (!Number.isFinite(idleMs) || idleMs <= 0) return
++  let lastActivity = Date.now()
++  // 每个 HTTP 请求都算活动；WS 心跳不算（靠 clients.size 判"有没有人在看"）。
++  input.httpServer.on('request', () => {
++    lastActivity = Date.now()
++  })
++  const interval = Math.min(60_000, Math.max(5_000, Math.floor(idleMs / 4)))
++  const timer = setInterval(() => {
++    if (input.wss.clients.size > 0) {
++      lastActivity = Date.now()
++      return
++    }
++    if (Date.now() - lastActivity < idleMs) return
++    clearInterval(timer)
++    process.stdout.write(
++      `[dsh-univer-gateway] idle ${String(Math.round(idleMs / 1000))}s with no client → exiting to release memory\n`
++    )
++    process.exit(0)
++  }, interval)
++  timer.unref?.()
++}
++
+ async function assertViewAssetsRoot(viewAssetsRoot: string): Promise<void> {
+   const root = resolve(viewAssetsRoot)
+   const indexStat = await stat(resolve(root, 'index.html'))
+@@ -126,13 +186,34 @@ function sendStaticNotFound(res: http.ServerResponse): void {
+   res.end('Not found')
+ }
+ 
+-function listen(server: http.Server, port: number): Promise<number> {
+-  return new Promise<number>((resolve, reject) => {
++interface ListenTarget {
++  readonly port: number
++  readonly host?: string
++  readonly socketPath?: string
++}
++
++function listen(server: http.Server, target: ListenTarget): Promise<{ port: number }> {
++  return new Promise<{ port: number }>((resolve, reject) => {
+     server.once('error', reject)
+     const onListening = (): void => {
+-      const address = server.address() as AddressInfo | null
+-      resolve(address?.port ?? port)
++      const address: AddressInfo | string | null = server.address()
++      // A unix domain socket reports its path (a string) rather than an AddressInfo.
++      resolve({ port: address !== null && typeof address === 'object' ? address.port : 0 })
++    }
++    if (target.socketPath !== undefined) {
++      // 2026-09-13：**绑前清陈旧 socket**。
++      // socket 路径按 pid 命名且**稳定**（实例内 pid namespace 里宿主恒为 2），而实例的 /tmp 是
++      // **跨实例重启保留**的 bind 挂载 ⇒ 上一次 gateway 死掉后留下的 socket 文件会让 bind() 抛
++      // EADDRINUSE，对外表现为 “bundled Gateway did not become ready within 10000ms”，且**永久不可恢复**
++      //（生产实测：删掉该文件后立刻 running）。这里先 unlink，ENOENT 忽略。
++      try {
++        rmSync(target.socketPath, { force: true })
++      } catch {
++        // 清不掉就让 listen 自己抛错，交给上层报错
++      }
++      server.listen(target.socketPath, onListening)
++      return
+     }
+-    server.listen(port, LOOPBACK_HOST, onListening)
++    server.listen(target.port, target.host ?? DEFAULT_LOOPBACK_HOST, onListening)
+   })
+ }
+diff --git a/src/host/adapters/gateway/client.ts b/src/host/adapters/gateway/client.ts
+index 5c7674c..e0aa63f 100644
+--- a/src/host/adapters/gateway/client.ts
++++ b/src/host/adapters/gateway/client.ts
+@@ -1,3 +1,4 @@
++import { requestGateway, type MinimalHttpResponse } from '../../../shared/gateway-request.ts'
+ import { UniverError } from '../../service/errors.ts'
+ import type { JsonValue } from '../../service/types.ts'
+ 
+@@ -23,21 +24,27 @@ export class GatewayClient {
+     method: 'GET' | 'POST',
+     body?: JsonValue
+   ): Promise<JsonValue> {
+-    let response: Response
++    // `origin` carries the transport (`unix:<path>` or an http origin); requestGateway picks it.
++    let raw: string
++    let ok: boolean
++    let status: number
+     try {
+-      response = await fetch(`${this.origin}${path}`, {
++      const response: MinimalHttpResponse = await requestGateway(this.origin, path, {
+         method,
+         ...(body === undefined
+           ? {}
+           : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+-        signal: AbortSignal.timeout(this.timeoutMs)
++        timeoutMs: this.timeoutMs
+       })
++      ok = response.ok
++      status = response.status
++      raw = await response.text()
+     } catch (error) {
+       throw gatewayTransportError(error)
+     }
+     let value: JsonValue
+     try {
+-      value = (await response.json()) as JsonValue
++      value = JSON.parse(raw) as JsonValue
+     } catch (error) {
+       if (isGatewayTimeout(error)) throw gatewayTransportError(error)
+       throw new UniverError(
+@@ -46,8 +53,8 @@ export class GatewayClient {
+         { cause: error }
+       )
+     }
+-    if (!response.ok) {
+-      const message = gatewayErrorMessage(value) ?? `Gateway HTTP ${String(response.status)}`
++    if (!ok) {
++      const message = gatewayErrorMessage(value) ?? `Gateway HTTP ${String(status)}`
+       throw new UniverError(message, 'GATEWAY_REQUEST_FAILED')
+     }
+     return value
+diff --git a/src/host/adapters/unit-content/protocol.ts b/src/host/adapters/unit-content/protocol.ts
+index 21726e8..b855bed 100644
+--- a/src/host/adapters/unit-content/protocol.ts
++++ b/src/host/adapters/unit-content/protocol.ts
+@@ -3,6 +3,11 @@ import type { JsonValue } from '../../service/types.ts'
+ /** Unit and collaboration scope passed to the package-local worker. */
+ export interface UnitContentWorkerTarget {
+   readonly gatewayOrigin: string
++  /**
++   * 宿主↔worker 内部字段（2026-09-13）：socket 模式下传**已解析的** Gateway socket 路径。
++   * 必须由宿主传，不能让 worker 自己按 `auto` 重算 —— `auto` 含 pid，worker 是另一个进程会算出不同路径。
++   */
++  readonly gatewaySocket?: string
+   readonly commitTimeoutMs: number
+   readonly fileKey: string
+   readonly filePath: string
+diff --git a/src/host/adapters/unit-content/worker.ts b/src/host/adapters/unit-content/worker.ts
+index 5a0b16f..b7dd4a1 100644
+--- a/src/host/adapters/unit-content/worker.ts
++++ b/src/host/adapters/unit-content/worker.ts
+@@ -5,6 +5,7 @@ import { spawnEnvironment } from '../../processes/spawn-env.ts'
+ import { UniverError } from '../../service/errors.ts'
+ import type { JsonValue } from '../../service/types.ts'
+ import { parseUnitContentWorkerEnvelope, type UnitContentWorkerRequest } from './protocol.ts'
++import { GATEWAY_SOCKET_ENV } from '../../../shared/gateway-socket.ts'
+ 
+ /** Invoke one isolated package-local Unit content operation. */
+ export class UnitContentWorker {
+@@ -14,7 +15,7 @@ export class UnitContentWorker {
+   async run(request: UnitContentWorkerRequest, signal?: AbortSignal): Promise<JsonValue> {
+     signal?.throwIfAborted()
+     const child = spawn(process.execPath, [UNIT_CONTENT_WORKER_ENTRY], {
+-      env: unitContentWorkerEnvironment(),
++      env: unitContentWorkerEnvironment('gatewaySocket' in request ? request.gatewaySocket : undefined),
+       stdio: ['pipe', 'pipe', 'pipe'],
+       windowsHide: true
+     })
+@@ -86,7 +87,7 @@ function workerDiagnostic(stderr: readonly Buffer[], fallback: string): string {
+   return `${fallback} ${diagnostic.length <= limit ? diagnostic : `${diagnostic.slice(0, limit)}…`}`
+ }
+ 
+-function unitContentWorkerEnvironment(): NodeJS.ProcessEnv {
++function unitContentWorkerEnvironment(socketPath?: string): NodeJS.ProcessEnv {
+   const env = Object.fromEntries(
+     ['HOME', 'LANG', 'LC_ALL', 'PATH', 'TMPDIR'].flatMap((key) => {
+       const value = process.env[key]
+@@ -98,5 +99,8 @@ function unitContentWorkerEnvironment(): NodeJS.ProcessEnv {
+   env.NODE_PATH = [PLUGIN_NODE_MODULES, process.env.NODE_PATH]
+     .filter((value): value is string => value !== undefined && value.length > 0)
+     .join(delimiter)
++  // 2026-09-13：socket 模式下把已解析的 Gateway socket 路径交给 worker，
++  // 由 worker 内的 fetch 垫片把 `http://unix/...` 改走该 socket（worker 侧原先只走 TCP loopback，被 nft 封）。
++  if (socketPath !== undefined && socketPath !== '') env[GATEWAY_SOCKET_ENV] = socketPath
+   return spawnEnvironment(env)
+ }
+diff --git a/src/host/config.ts b/src/host/config.ts
+index 1d8244b..fb8e581 100644
+--- a/src/host/config.ts
++++ b/src/host/config.ts
+@@ -71,7 +71,7 @@ export interface ResolvedConfig {
+ export const Config: z<Config> = z.object({
+   gatewayPort: z.natural().max(65535).default(9080),
+   autoStartGateway: z.boolean().default(true),
+-  gatewayStartupTimeoutMs: z.natural().default(10_000),
++  gatewayStartupTimeoutMs: z.natural().default(20_000),
+   gatewayRequestTimeoutMs: z.natural().default(3_000),
+   gatewayMutationTimeoutMs: z.natural().default(60_000),
+   unitContentOperationTimeoutMs: z.natural().default(120_000),
+@@ -95,7 +95,7 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
+   const resolved: ResolvedConfig = {
+     gatewayPort: config.gatewayPort ?? 9080,
+     autoStartGateway: config.autoStartGateway ?? true,
+-    gatewayStartupTimeoutMs: config.gatewayStartupTimeoutMs ?? 10_000,
++    gatewayStartupTimeoutMs: config.gatewayStartupTimeoutMs ?? 20_000,
+     gatewayRequestTimeoutMs: config.gatewayRequestTimeoutMs ?? 3_000,
+     gatewayMutationTimeoutMs: config.gatewayMutationTimeoutMs ?? 60_000,
+     unitContentOperationTimeoutMs: config.unitContentOperationTimeoutMs ?? 120_000,
+diff --git a/src/host/processes/gateway/gateway-process.ts b/src/host/processes/gateway/gateway-process.ts
+index 01f3510..3886f0f 100644
+--- a/src/host/processes/gateway/gateway-process.ts
++++ b/src/host/processes/gateway/gateway-process.ts
+@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
+ import type { ChildProcess } from 'node:child_process'
+ import type { EnsureGatewayResult } from '../../../shared/wire/status.ts'
+ import { GATEWAY_PORT_IN_USE_EXIT_CODE } from '../../../shared/gateway-process-protocol.ts'
++import { resolveGatewaySocketPath, unixOrigin } from '../../../shared/gateway-socket.ts'
+ import { gatewayLaunch } from './launcher.ts'
+ import { gatewayIsHealthy } from './protocol.ts'
+ 
+@@ -26,7 +27,11 @@ export class GatewayProcess {
+     const launch = gatewayLaunch(port)
+     const child = spawn(launch.command, [...launch.args], launch.options)
+     this.child = child
+-    const origin = `http://127.0.0.1:${String(port)}`
++    // The launcher decides the transport; tag the endpoint so every downstream caller can pick
++    // the matching client without re-reading the environment. See `shared/gateway-socket.ts`.
++    const socketPath = resolveGatewaySocketPath()
++    const origin =
++      socketPath === undefined ? `http://127.0.0.1:${String(port)}` : unixOrigin(socketPath)
+     let stderr = ''
+     child.stderr?.on('data', (chunk: Buffer | string) => {
+       stderr = `${stderr}${String(chunk)}`.slice(-4_000)
+diff --git a/src/host/processes/gateway/launcher.ts b/src/host/processes/gateway/launcher.ts
+index af4d8bd..6d3ad34 100644
+--- a/src/host/processes/gateway/launcher.ts
++++ b/src/host/processes/gateway/launcher.ts
+@@ -1,6 +1,10 @@
+ import type { SpawnOptions } from 'node:child_process'
+ import { delimiter } from 'node:path'
+ import { GATEWAY_ENTRY, PLUGIN_NODE_MODULES, VIEWER_ROOT } from '../../artifacts/paths.ts'
++import {
++  GATEWAY_CHILD_SOCKET_ENV,
++  resolveGatewaySocketPath
++} from '../../../shared/gateway-socket.ts'
+ import { spawnEnvironment } from '../spawn-env.ts'
+ 
+ /** Build the fixed executable and environment used for a bundled Gateway. */
+@@ -13,17 +17,24 @@ export function gatewayLaunch(port: number): {
+     const value = process.env[key]
+     return value === undefined ? [] : [[key, value] as const]
+   })
++  // A unix socket keeps the host↔gateway hop inside the filesystem; see `shared/gateway-socket.ts`.
++  const socketPath = resolveGatewaySocketPath()
+   const env: NodeJS.ProcessEnv = {
+     ...Object.fromEntries(inherited),
+     UNIVER_COLLAB_GATEWAY_PORT: String(port),
++    ...(socketPath === undefined ? {} : { [GATEWAY_CHILD_SOCKET_ENV]: socketPath }),
+     UNIVER_VIEW_ASSETS_ROOT: VIEWER_ROOT,
+     // Let the gateway and worker resolve their native dependencies
+     // (@univerjs-pro/exchange-node-binding, engine-formula-rust-binding, libsql) from this
+     // plugin's node_modules; the formula binding package resolves its own
+     // platform binary (no NAPI_RS_NATIVE_LIBRARY_PATH override needed).
++    // 方案 E（2026-09-13）：空闲自停阈值透传（默认走 gateway 侧的 600000 = 10 分钟；0 = 关闭）。
++    ...(process.env.UNIVER_DSH_GATEWAY_IDLE_MS === undefined
++      ? {}
++      : { UNIVER_DSH_GATEWAY_IDLE_MS: process.env.UNIVER_DSH_GATEWAY_IDLE_MS }),
+     NODE_PATH: [PLUGIN_NODE_MODULES, process.env.NODE_PATH]
+       .filter((value): value is string => value !== undefined && value.length > 0)
+-      .join(delimiter)
++      .join(delimiter),
+   }
+   return {
+     command: process.execPath,
+diff --git a/src/host/processes/gateway/protocol.ts b/src/host/processes/gateway/protocol.ts
+index 91075de..05412d0 100644
+--- a/src/host/processes/gateway/protocol.ts
++++ b/src/host/processes/gateway/protocol.ts
+@@ -1,21 +1,45 @@
+-/** Probe one Gateway origin and return whether its Viewer endpoint is healthy. */
++import {
++  parseUnixOrigin,
++  resolveGatewaySocketPath,
++  unixOrigin
++} from '../../../shared/gateway-socket.ts'
++import { requestOverUnixSocket } from '../../../shared/unix-http.ts'
++
++/** Probe one Gateway endpoint — a TCP origin or `unix:<path>` — and report Viewer health. */
+ export async function gatewayIsHealthy(origin: string, timeoutMs: number): Promise<boolean> {
++  const socketPath = parseUnixOrigin(origin)
+   try {
++    if (socketPath !== null) {
++      const response = await requestOverUnixSocket(socketPath, '/', { timeoutMs })
++      if (!response.ok) return false
++      return isViewerHtml(await response.text())
++    }
+     const response = await fetch(`${origin}/`, { signal: AbortSignal.timeout(timeoutMs) })
+     if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) return false
+-    const html = await response.text()
+-    return html.includes('<title>Univer</title>') && html.includes('<div id="app"></div>')
+-  } catch (error) {
+-    if (error instanceof Error) return false
++    return isViewerHtml(await response.text())
++  } catch {
+     return false
+   }
+ }
+ 
+-/** Return the first healthy Gateway origin from the configured ports. */
++/**
++ * The Viewer markup check is the Gateway identity check — it runs on every transport so a bare
++ * HTTP 200 from an unrelated local service is never mistaken for the Gateway.
++ */
++function isViewerHtml(html: string): boolean {
++  return html.includes('<title>Univer</title>') && html.includes('<div id="app"></div>')
++}
++
++/** Return the first healthy Gateway endpoint from the configured ports, or null. */
+ export async function probeGateway(
+   ports: readonly number[],
+   timeoutMs: number
+ ): Promise<string | null> {
++  const socketPath = resolveGatewaySocketPath()
++  if (socketPath !== undefined) {
++    const origin = unixOrigin(socketPath)
++    return (await gatewayIsHealthy(origin, timeoutMs)) ? origin : null
++  }
+   for (const port of ports) {
+     const origin = `http://127.0.0.1:${String(port)}`
+     if (await gatewayIsHealthy(origin, timeoutMs)) return origin
+diff --git a/src/host/provider/gateway-univer-service.ts b/src/host/provider/gateway-univer-service.ts
+index 39459b8..e157f2b 100644
+--- a/src/host/provider/gateway-univer-service.ts
++++ b/src/host/provider/gateway-univer-service.ts
+@@ -4,6 +4,7 @@ import type { ResolvedConfig } from '../config.ts'
+ import type { WorktreeActionResult } from '../../shared/wire/actions.ts'
+ import type { FileState, WorktreeState, ChangedUnit } from '../../shared/wire/state.ts'
+ import type { EnsureGatewayResult, GatewayStatus } from '../../shared/wire/status.ts'
++import { VIEWER_PAGE_PATH } from '../../shared/viewer-paths.ts'
+ import { GatewayClient, gatewayErrorMessage } from '../adapters/gateway/client.ts'
+ import { GatewayFileApi, fileKeyOf } from '../adapters/gateway/file-api.ts'
+ import { GatewayWorktreeApi } from '../adapters/gateway/worktree-api.ts'
+@@ -500,7 +501,8 @@ export class GatewayUniverService extends UniverService {
+     const records = mapWorktrees(listing)
+     const entries = await Promise.all(
+       records.map(async (record): Promise<WorktreeState> => {
+-        const base = `${gateway}/?file=${encodeURIComponent(fileKeyOf(file))}`
++        // Same-origin like `viewerUrl` above — every URL derived from `base` goes to the browser.
++        const base = `${VIEWER_PAGE_PATH}?file=${encodeURIComponent(fileKeyOf(file))}`
+         const worktree = encodeURIComponent(record.worktreeId)
+         const openUrl = `${base}&worktree=${worktree}`
+         const worktreeUrl = `${base}&worktree=${worktree}&mode=embedded&scope=worktree`
+@@ -535,7 +537,9 @@ export class GatewayUniverService extends UniverService {
+       file,
+       gateway,
+       gatewayRunning: true,
+-      viewerUrl: `${gateway}/?file=${encodeURIComponent(fileKeyOf(file))}`,
++      // Same-origin path: the host webserver proxies it to the Gateway, so the browser never has
++      // to reach a loopback port of its own. See `webServer/viewer-proxy.ts`.
++      viewerUrl: `${VIEWER_PAGE_PATH}?file=${encodeURIComponent(fileKeyOf(file))}`,
+       worktrees: entries
+     }
+   }
+diff --git a/src/host/provider/render-source-operations.ts b/src/host/provider/render-source-operations.ts
+index f199765..8256f2f 100644
+--- a/src/host/provider/render-source-operations.ts
++++ b/src/host/provider/render-source-operations.ts
+@@ -5,6 +5,7 @@ import type {
+   UniverRenderFormulaReferenceUnit,
+   UniverRenderUnit
+ } from '@univer-cli/univer-render-runtime'
++import { requestGateway, type MinimalHttpResponse } from '../../shared/gateway-request.ts'
+ import { GatewayClient } from '../adapters/gateway/client.ts'
+ import { GatewayFileApi, fileKeyOf } from '../adapters/gateway/file-api.ts'
+ import { GatewayWorktreeApi } from '../adapters/gateway/worktree-api.ts'
+@@ -139,12 +140,13 @@ function assetResolver(
+   const scope = worktreeId === undefined ? '' : `/worktrees/${encodeURIComponent(worktreeId)}`
+   return {
+     async resolve(input) {
+-      const timeout = AbortSignal.timeout(timeoutMs)
+-      const signal = input.signal === undefined ? timeout : AbortSignal.any([input.signal, timeout])
+       const path = `/uf/${fileKeyOf(file)}${scope}/universer-api/file/${encodeURIComponent(input.source)}/content`
+-      let response: Response
++      let response: MinimalHttpResponse
+       try {
+-        response = await fetch(`${gateway}${path}`, { signal })
++        response = await requestGateway(gateway, path, {
++          timeoutMs,
++          ...(input.signal === undefined ? {} : { signal: input.signal })
++        })
+       } catch (error) {
+         if (input.signal?.aborted === true) throw input.signal.reason
+         throw new UniverError('Gateway asset request failed.', 'SCREENSHOT_ASSET_REQUEST_FAILED', {
+diff --git a/src/host/provider/unit-content-operations.ts b/src/host/provider/unit-content-operations.ts
+index b48883a..c29b877 100644
+--- a/src/host/provider/unit-content-operations.ts
++++ b/src/host/provider/unit-content-operations.ts
+@@ -8,6 +8,7 @@ import { GatewayClient } from '../adapters/gateway/client.ts'
+ import { GatewayFileApi, fileKeyOf } from '../adapters/gateway/file-api.ts'
+ import { isRecord, mapUnits, type GatewayUnit } from '../adapters/gateway/mapping.ts'
+ import { GatewayWorktreeApi } from '../adapters/gateway/worktree-api.ts'
++import { parseUnixOrigin } from '../../shared/gateway-socket.ts'
+ import type {
+   ExportUnitContentRequest,
+   InspectUnitContentRequest,
+@@ -37,6 +38,9 @@ export function resolveExportFile(value: string): string {
+ }
+ 
+ /** Package-local Unit content operations over one Gateway and isolated workers. */
++/** worker 侧的合成 origin：仅用于通过 worker 的 `requiredHttpOrigin` 校验（见 entry.ts 的垫片）。 */
++const WORKER_SOCKET_ORIGIN = 'http://unix'
++
+ export class UnitContentOperations {
+   private readonly worker: UnitContentWorker
+ 
+@@ -156,8 +160,12 @@ export class UnitContentOperations {
+         ? await new GatewayFileApi(client).listUnits(filePath)
+         : await new GatewayWorktreeApi(client).listUnits(filePath, worktreeId)
+     const unit = selectUnit(mapUnits(listing), unitId)
++    const socketPath = parseUnixOrigin(gatewayOrigin)
+     return {
+-      gatewayOrigin,
++      // worker 只接受标准 HTTP origin ⇒ socket 模式下给它一个**合成的** HTTP origin，
++      // 真正的 socket 路径走 gatewaySocket（worker.ts 注入 env，worker 内 fetch 垫片消费）。
++      gatewayOrigin: socketPath === null ? gatewayOrigin : WORKER_SOCKET_ORIGIN,
++      ...(socketPath === null ? {} : { gatewaySocket: socketPath }),
+       commitTimeoutMs: this.unitContentCommitTimeoutMs,
+       fileKey: fileKeyOf(filePath),
+       filePath,
+diff --git a/src/host/skills/plugin.ts b/src/host/skills/plugin.ts
+index e9103ad..4c5541c 100644
+--- a/src/host/skills/plugin.ts
++++ b/src/host/skills/plugin.ts
+@@ -50,6 +50,13 @@ const DEFINITIONS = [
+     name: 'univer-cross-unit-formula',
+     description:
+       'Author, calculate, update, inspect, and verify cross-Unit formulas through DSH tools and the Lite Interface. Use proactively when a Sheet cell or formula-driven Shape in a Sheet, Doc, Slide, or Board reads a Sheet range or Base table column from another Unit in the same .univer file.'
++  },
++  {
++    // 2026-09-13 新增：本机 glibc 2.32 ⇒ Univer 的 Office 导入导出（原生绑定要求 GLIBC ≥ 2.35）不可用，
++    // 于是「AI 生成一个 Word/Excel/PPT 文件给用户下载」这条需求改用零依赖 OOXML 生成器满足。
++    name: 'office-file-generation',
++    description:
++      'Generate real Office files (.docx / .xlsx / .pptx) in the workspace so the user can download them, using a bundled zero-dependency generator (Python stdlib only). Use proactively whenever the user asks to 生成/导出/产出 a Word 文档、Excel 表格、PPT 汇报 (report, weekly, data table, ranking, deck) — especially when Univer native import/export is unavailable. Keywords: docx, xlsx, pptx, Word, Excel, PowerPoint, Office 文件.'
+   }
+ ] as const
+ 
+diff --git a/src/host/webServer/plugin.ts b/src/host/webServer/plugin.ts
+index 7fe98ae..2dd1fa0 100644
+--- a/src/host/webServer/plugin.ts
++++ b/src/host/webServer/plugin.ts
+@@ -2,7 +2,15 @@ import type { Context } from '@deepseek-ai/cordis'
+ import type {} from '@deepseek-ai/dsh-host-webserver'
+ import type {} from '@deepseek-ai/dsh-session'
+ import type {} from '../service/univer-service.ts'
++import { fileKeyOf } from '../adapters/gateway/file-api.ts'
++import type {} from '../service/univer-service.ts'
+ import { createUniverRouter } from './router.ts'
++import {
++  createGatewayUpgradeProxy,
++  createGatewayViewerProxy,
++  GATEWAY_DATA_PREFIX,
++  viewerSocketPaths
++} from './viewer-proxy.ts'
+ 
+ /** Services required by the browser API consumer. */
+ export const inject = ['univer', 'webServer', 'sessions']
+@@ -10,13 +18,48 @@ export const name = 'univer-web'
+ 
+ /** Register the browser API as one host webserver prefix route. */
+ export function apply(ctx: Context): void {
++  // Upgrades are matched by exact path, and the viewer socket paths embed the encoded univerfile,
++  // so they can only be registered once a file is opened. Seeded from the router via the callback.
++  const viewerUpgrades = new Map<string, () => void>()
++  const registerViewerSockets = (file: string): void => {
++    for (const path of viewerSocketPaths(fileKeyOf(file))) {
++      if (viewerUpgrades.has(path)) continue
++      viewerUpgrades.set(
++        path,
++        ctx.webServer.registerUpgrade({
++          path,
++          handler: (request, socket, head) =>
++            createGatewayUpgradeProxy(ctx.univer, request, socket, head)
++        })
++      )
++    }
++  }
++  ctx.effect(
++    () => () => {
++      for (const dispose of viewerUpgrades.values()) dispose()
++      viewerUpgrades.clear()
++    },
++    'univer: viewer sockets'
++  )
++
+   ctx.effect(
+     () =>
+       ctx.webServer.register({
+         kind: 'prefix',
+         path: '/univer-api',
+-        handler: createUniverRouter(ctx.univer, ctx.sessions)
++        handler: createUniverRouter(ctx.univer, ctx.sessions, registerViewerSockets)
+       }),
+     'univer: browser api'
+   )
++  // Once loaded, the Viewer addresses its backend by absolute path (`/uf/<enc>/...`), which sits
++  // outside every other seat. Proxying it here keeps those requests same-origin. See viewer-proxy.ts.
++  ctx.effect(
++    () =>
++      ctx.webServer.register({
++        kind: 'prefix',
++        path: GATEWAY_DATA_PREFIX,
++        handler: (request, response) => createGatewayViewerProxy(ctx.univer, request, response)
++      }),
++    'univer: viewer data plane'
++  )
+ }
+diff --git a/src/host/webServer/router.ts b/src/host/webServer/router.ts
+index 68439fc..aff6396 100644
+--- a/src/host/webServer/router.ts
++++ b/src/host/webServer/router.ts
+@@ -6,14 +6,26 @@ import { gatewayStartRoute } from './routes/gateway.ts'
+ import { stateRoute } from './routes/state.ts'
+ import { statusRoute } from './routes/status.ts'
+ import { worktreeActionRoute } from './routes/worktree-action.ts'
++import { createGatewayViewerProxy, VIEWER_PROXY_PREFIX } from './viewer-proxy.ts'
+ 
+ const MAX_BODY_BYTES = 64 * 1024
+ 
+ /** Create the `/univer-api` HTTP dispatcher. */
+-export function createUniverRouter(service: UniverService, sessions: SessionStore) {
++export function createUniverRouter(
++  service: UniverService,
++  sessions: SessionStore,
++  onViewerFileOpened: (file: string) => void = () => {}
++) {
+   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+     try {
+       const url = new URL(request.url ?? '/', 'http://localhost')
++      // The viewer page lives under this prefix too, so it is dispatched here rather than as its
++      // own route: the webserver matches prefixes without longest-prefix precedence, and a
++      // separate `/univer-api/viewer` seat would be shadowed by this broader one.
++      if (url.pathname.startsWith(VIEWER_PROXY_PREFIX)) {
++        await createGatewayViewerProxy(service, request, response)
++        return
++      }
+       if (request.method === 'GET' && url.pathname === '/univer-api/status') {
+         sendJson(response, 200, await statusRoute(service))
+         return
+@@ -23,15 +35,14 @@ export function createUniverRouter(service: UniverService, sessions: SessionStor
+         return
+       }
+       if (request.method === 'GET' && url.pathname === '/univer-api/state') {
++        const file = url.searchParams.get('file')
++        // Opening a file is when its viewer sockets become addressable; the host webserver can
++        // only register upgrades by exact path, so the routes are seeded here. See viewer-proxy.ts.
++        if (file !== null) onViewerFileOpened(file)
+         sendJson(
+           response,
+           200,
+-          await stateRoute(
+-            service,
+-            sessions,
+-            url.searchParams.get('file'),
+-            url.searchParams.get('sessionId')
+-          )
++          await stateRoute(service, sessions, file, url.searchParams.get('sessionId'))
+         )
+         return
+       }
+diff --git a/src/workers/unit-content/entry.ts b/src/workers/unit-content/entry.ts
+index 55989e4..5ee2145 100644
+--- a/src/workers/unit-content/entry.ts
++++ b/src/workers/unit-content/entry.ts
+@@ -20,6 +20,12 @@ import { UniverInstanceType } from '@univerjs/core'
+ import { UNIVER_LICENSE } from './license.ts'
+ import { createLocalReferencedUnitProviderRegistration } from './runtime/local-referenced-unit-provider.ts'
+ import { LocalSnapshotServerAdapter } from './runtime/local-snapshot-server-adapter.ts'
++import http from 'node:http'
++import https from 'node:https'
++import { createRequire } from 'node:module'
++import { connect } from 'node:net'
++import { GATEWAY_SOCKET_ENV } from '../../shared/gateway-socket.ts'
++import { requestOverUnixSocket } from '../../shared/unix-http.ts'
+ 
+ type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
+ type ImportOfficeFile = (
+@@ -87,6 +93,22 @@ interface WorkerEnvelope {
+   readonly error?: { readonly code: string; readonly message: string }
+ }
+ 
++/**
++ * ⛔ 这三个 install 必须在顶层 `await main()` **之前**执行完（2026-09-13 实测踩坑，勿再上移 main 调用）。
++ *
++ * 踩到的坑：本文件原先的顺序是「顶层 `await main()` 在前、模块级常量/函数声明在后」。打包器把模块级
++ * `const` 降级为**函数作用域 `var`** 并整体提升 ⇒ 顶层 await 处 `main()` 已经开始跑，而它调用到的垫片
++ * 读到的常量仍是 `undefined` ⇒ `'http://unix/…'.startsWith(undefined)` 恒为 false ⇒ 垫片静默把请求
++ * 交回真 `fetch` ⇒ 去拨号主机名 `unix` ⇒ 最终只报 `COLLABORATION_UNAVAILABLE`。
++ * 实测证据（0.2.23 产物 + 临时探针）：`EARLY-RETURN target=http://unix/… | origin=undefined`。
++ *
++ * 双重保险：① install 调用提前到顶层 await 之前；② 垫片内的 origin 一律用**函数内字面量**，
++ * 不依赖任何模块级常量（防止将来再有人重排顺序时复发）。
++ */
++installUnixGatewayFetchShim()
++installUnixGatewayHttpRequestShim()
++installUnixGatewayWebSocketShim()
++
+ const envelope = await main().then<WorkerEnvelope>(
+   (result) => ({ ok: true, result }),
+   (error: unknown) => ({
+@@ -100,6 +122,198 @@ const envelope = await main().then<WorkerEnvelope>(
+ process.stdout.write(`${JSON.stringify(envelope)}\n`)
+ if (!envelope.ok) process.exitCode = 1
+ 
++/**
++ * 宿主注入的、**已解析**的 Gateway socket 路径；未开启 socket 模式时返回 `undefined`。
++ *
++ * 注意这里只读 env 名常量（来自 `shared/gateway-socket.ts`，打包时在入口模块之前初始化，实测可用），
++ * 而 **origin 一律用函数内字面量** —— 原因见文件顶部那段说明。
++ */
++function gatewaySocketPath(): string | undefined {
++  const raw = process.env[GATEWAY_SOCKET_ENV]
++  return raw === undefined || raw === '' || raw === 'auto' ? undefined : raw
++}
++
++/**
++ * 把走 `http://unix/...` 的请求改走 unix socket（2026-09-13）。
++ *
++ * 背景：socket 模式下宿主**不能**把 `unix:<path>` 交给本 worker —— worker 的 `requiredHttpOrigin`
++ * 只接受标准 HTTP origin，而 worker 内部的 Univer 库自己拼 `http://<origin>/uf/...` 发请求。
++ * 于是宿主给合成 origin `http://unix`，并通过 `UNIVER_DSH_GATEWAY_SOCKET` 传**已解析的** socket 路径，
++ * 由这里的垫片接管这些请求（TCP loopback 在该租户 uid 下被 egress 规则拒绝）。
++ */
++function installUnixGatewayFetchShim(): void {
++  const socketPath = gatewaySocketPath()
++  if (socketPath === undefined) return
++  const socketOrigin = 'http://unix'
++  const originalFetch = globalThis.fetch
++  const patched = async function (input: unknown, init?: unknown): Promise<Response> {
++    if (process.env.UNIVER_DSH_GATEWAY_DEBUG === '1')
++      process.stderr.write('[uvshim] fetch-called ' + String((input as { url?: string })?.url ?? input).slice(0, 130) + '\n')
++    const target =
++      typeof input === 'string'
++        ? input
++        : input instanceof URL
++          ? input.href
++          : String((input as { url?: string } | null)?.url ?? input)
++    if (!target.startsWith(socketOrigin)) return await originalFetch(input as never, init as never)
++    const url = new URL(target)
++    const options = (init ?? {}) as {
++      method?: string
++      headers?: unknown
++      body?: unknown
++      signal?: AbortSignal
++    }
++    let response
++    try {
++      response = await requestOverUnixSocket(socketPath, `${url.pathname}${url.search}`, {
++      method: options.method ?? 'GET',
++      ...(options.headers === undefined ? {} : { headers: toHeaderRecord(options.headers) }),
++      ...(typeof options.body === 'string' ? { body: options.body } : {}),
++      timeoutMs: 30_000,
++      ...(options.signal === undefined ? {} : { signal: options.signal })
++      })
++    } catch (error: unknown) {
++      if (process.env.UNIVER_DSH_GATEWAY_DEBUG === '1')
++        process.stderr.write('[uvshim] socket-request FAILED: ' + String((error as Error)?.message ?? error) + ' socket=' + socketPath + '\n')
++      throw error
++    }
++    const body = Buffer.from(await response.arrayBuffer())
++    if (process.env.UNIVER_DSH_GATEWAY_DEBUG === '1')
++      process.stderr.write('[uvshim] fetch-result status=' + String(response.status) + ' body=' + body.toString().slice(0, 220).replace(/\s+/g, ' ') + '\n')
++    const contentType = response.headers.get('content-type')
++    return new Response(body, {
++      status: response.status,
++      ...(contentType === null ? {} : { headers: { 'content-type': contentType } })
++    })
++  }
++  globalThis.fetch = patched as unknown as typeof globalThis.fetch
++}
++
++/**
++ * WebSocket 垫片（2026-09-13 · 补上「协作通道」这一环）。
++ *
++ * 为什么需要：worker 用 `gatewayOrigin` **字符串替换**推导协作通道地址
++ * （`gatewayUrls()`：`const wsRoot = root2.replace(/^http/u, 'ws')`）⇒ socket 模式下拿到
++ * `ws://unix/uf/<fileKey>/…/universer-api/comb/connect`。这个 URL 形状合法，但标准 WebSocket 客户端
++ * 会去 **TCP 拨号主机名 `unix`**（DNS 失败）⇒ `Failed to establish Collaboration WebSocket`。
++ * HTTP 侧已由 `installUnixGatewayFetchShim()` 接管；这里只补 WS 侧。
++ *
++ * 实现：仅拦 `ws://unix/...` —— 用插件自带的 `ws` 包（`package.json` 已声明 `^8.21.3`）并以
++ * `createConnection` 把底层连接换成 unix socket；**其它 URL 一律交还原实现（Node 内置 undici）**，
++ * 因此 TCP 模式行为完全不变（零回归）。
++ */
++/**
++ * `node:http` / `node:https` 垫片（2026-09-13）：协作库里并非所有请求都走全局 `fetch`，
++ * 有些直接用 `http.request`。把**目标主机为 `unix`** 的请求改走 unix socket。
++ *
++ * 判定依据：worker 先前日志里 fetch 垫片**一次都没被调用**却仍报
++ * `Failed to open the collaboration backend` ⇒ 说明请求走了别的客户端。
++ */
++function installUnixGatewayHttpRequestShim(): void {
++  const socketPath = gatewaySocketPath()
++  if (socketPath === undefined) return
++  const socketOrigin = 'http://unix'
++  for (const mod of [http, https]) {
++    const original = mod.request
++    const patched = function (this: unknown, ...args: unknown[]): unknown {
++      const first = args[0] as (string | URL | Record<string, unknown>) | undefined
++      // ⚠️ 三种调用形态都要认：`request(url)` / `request(url, options, cb)` / `request(options, cb)`。
++      // 0.2.21 只判字符串 ⇒ 协作库用 `new URL(...)` 传进来时整个垫片失效（实测）。
++      const urlLike = typeof first === 'string' || first instanceof URL
++      const urlText = typeof first === 'string' ? first : first instanceof URL ? first.href : ''
++      const options = (urlLike ? (args[1] as Record<string, unknown>) ?? {} : first ?? {}) as Record<
++        string,
++        unknown
++      >
++      const host = String(options.host ?? options.hostname ?? '')
++      if (process.env.UNIVER_DSH_GATEWAY_DEBUG === '1')
++        process.stderr.write(
++          '[uvshim] http-request host=' +
++            host.slice(0, 60) +
++            ' path=' +
++            String(options.path ?? urlText).slice(0, 70) +
++            '\n'
++        )
++      if (host.includes('unix') || urlText.startsWith(socketOrigin)) {
++        // URL / 字符串形态必须先把 path 抠出来 —— 直接 spread 一个 URL 得到的是空对象，路径会丢。
++        const derived = urlText === '' ? undefined : new URL(urlText)
++        const merged = {
++          ...(derived === undefined
++            ? {}
++            : { host: derived.hostname, path: `${derived.pathname}${derived.search}` }),
++          ...options,
++          socketPath,
++          createConnection: () => connect({ path: socketPath })
++        }
++        return urlLike
++          ? original.call(mod, merged as never, args[2] as never)
++          : original.call(mod, merged as never, args[1] as never)
++      }
++      return (original as (...a: unknown[]) => unknown).apply(mod, args)
++    }
++    ;(mod as unknown as { request: unknown }).request = patched
++  }
++}
++
++function installUnixGatewayWebSocketShim(): void {
++  const socketPath = gatewaySocketPath()
++  if (socketPath === undefined) return
++  const socketWsOrigin = 'ws://unix'
++  const Original = globalThis.WebSocket
++  // ⚠️ 必须用 createRequire 取**真实的** node_modules/ws：
++  // 直接 `import('ws')` 会被 esbuild 解析到**内联进本 bundle 的那份**，而那份的 CJS `require('events')`
++  // 会撞上 esbuild 的 __require 兜底 → 运行期抛 `Dynamic require of "events" is not supported`
++  //（2026-09-13 实测：这正是 0.2.21/0.2.22 仍然失败的真正原因）。
++  try {
++    const req = createRequire(import.meta.url)
++    const WsClient = (req('ws') as { WebSocket: new (url: unknown, opts: unknown) => unknown }).WebSocket
++    {
++      const Patched = function (url: unknown, protocols?: unknown): unknown {
++        // ⚠️ 必须归一化：worker 的调用点是 `new WebSocket(new URL(...))`（**URL 对象**，不是字符串）——
++        // 0.2.21 只判 `typeof url === 'string'` 会漏掉它、回落到 undici 又去 DNS 拨 `unix`（实测被实例内自查抓到）。
++        if (process.env.UNIVER_DSH_GATEWAY_DEBUG === '1')
++          process.stderr.write('[uvshim] ws-construct ' + String((url as { href?: string })?.href ?? url).slice(0, 130) + '\n')
++        const href =
++          typeof url === 'string'
++            ? url
++            : url instanceof URL
++              ? url.href
++              : typeof (url as { href?: unknown } | null)?.href === 'string'
++                ? String((url as { href: string }).href)
++                : ''
++        if (href.startsWith(socketWsOrigin)) {
++          return new WsClient(url as never, {
++            createConnection: () => connect({ path: socketPath })
++          })
++        }
++        return new Original(url as string, protocols as never)
++      }
++      // 标准常量要能被 `WebSocket.OPEN` 这类用法读到
++      Object.assign(Patched, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 })
++      globalThis.WebSocket = Patched as unknown as typeof globalThis.WebSocket
++    }
++  } catch (error: unknown) {
++    // 拿不到 ws 包就无法接管协作 WS ⇒ 一定会 `COLLABORATION_UNAVAILABLE`。
++    // ⚠️ 早先这里是**静默**吞掉的，导致这个失败查了很久（0.2.21–0.2.23）⇒ 现在必须喊出来：
++    // 注意 `ws` 在上游只是 devDependency，靠 profile 的 `.pnpm/node_modules` 提升才解析得到，
++    // 一旦提升集合变化就会踩到这里。
++    process.stderr.write(
++      '[uvshim] WebSocket shim unavailable (ws package not resolvable): ' +
++        String((error as Error)?.message ?? error) +
++        '\n'
++    )
++  }
++}
++
++function toHeaderRecord(headers: unknown): Record<string, string> | undefined {
++  if (headers === undefined || headers === null) return undefined
++  if (typeof Headers !== 'undefined' && headers instanceof Headers) {
++    return Object.fromEntries(headers.entries())
++  }
++  if (Array.isArray(headers)) return Object.fromEntries(headers as [string, string][])
++  return headers as Record<string, string>
++}
++
+ async function main(): Promise<JsonValue> {
+   const request = parseRequest(JSON.parse(await readStdin()) as unknown)
+   if (request.operation === 'import') {
+@@ -128,11 +342,17 @@ async function main(): Promise<JsonValue> {
+       }
+     })(context)
+   }
+-  const collaboration = await createUniverCollaborationRuntimeFactory({
+-    backend: createCollaborationServerAdapter(urls),
+-    createUniver,
+-    snapshotServerService
+-  }).load(request.unitId, request.unitType)
++  const collaboration = await (async () => {
++    try {
++      return await createUniverCollaborationRuntimeFactory({
++        backend: createCollaborationServerAdapter(urls),
++        createUniver,
++        snapshotServerService
++      }).load(request.unitId, request.unitType)
++    } catch (error: unknown) {
++      throw error
++    }
++  })()
+   try {
+     await pullCurrent(collaboration)
+     switch (request.operation) {

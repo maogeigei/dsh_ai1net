@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 760" width="1180" height="760" role="img" aria-label="DSH Users Platform cluster architecture">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+    <style>
+      .t    { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+      .h1   { font-size: 27px; font-weight: 700; }
+      .sub  { font-size: 14px; fill: #57606a; }
+      .sec  { font-size: 15px; font-weight: 600; }
+      .lbl  { font-size: 13px; fill: #57606a; }
+      .chip { font-size: 13px; }
+      .box  { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.5; }
+      .ln   { stroke: #57606a; stroke-width: 1.8; fill: none; marker-end: url(#ar); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="760" rx="14" fill="#f6f8fa"/>
+
+  <g fill="#1f2328">
+    <text class="t h1" x="40" y="50">DSH Users Platform · Cluster mode</text>
+    <text class="t sub" x="40" y="76">The control plane splits across hosts: a manager node and one or more worker nodes. Single-machine mode is unchanged and remains the default.</text>
+
+    <!-- browser -->
+    <rect class="box" x="40" y="100" width="1100" height="56" rx="10"/>
+    <text class="t sec" x="64" y="134">Browser</text>
+    <text class="t lbl" x="162" y="134">desktop / mobile — one main domain, each user on their own subdomain</text>
+
+    <path class="ln" d="M 590 156 L 590 190"/>
+    <text class="t lbl" x="604" y="178">HTTPS (wildcard certificate)</text>
+
+    <!-- nginx -->
+    <rect class="box" x="40" y="194" width="1100" height="52" rx="10"/>
+    <text class="t sec" x="64" y="226">nginx</text>
+    <text class="t lbl" x="140" y="226">TLS termination · routes every request to the manager node</text>
+
+    <path class="ln" d="M 590 246 L 590 284"/>
+    <text class="t lbl" x="604" y="272">routed by Host / sub-path</text>
+
+    <!-- MANAGER NODE -->
+    <rect class="box" x="40" y="288" width="1100" height="168" rx="10" stroke="#0969da" stroke-width="2"/>
+    <text class="t sec" x="64" y="316" fill="#0969da">Manager node</text>
+    <text class="t lbl" x="196" y="316">the control plane — accounts, routing, admin, and who owns which instance</text>
+
+    <rect x="64" y="330" width="336" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="355">auth / approval / sessions · admin console</text>
+    <rect x="412" y="330" width="336" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="428" y="355">routing &amp; reverse proxy · desktop · files</text>
+    <rect x="760" y="330" width="356" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="776" y="355">plugins &amp; skills · model settings</text>
+
+    <!-- the lease, highlighted -->
+    <rect x="64" y="382" width="684" height="58" rx="8" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.6"/>
+    <text class="t chip" x="80" y="404" fill="#7a5c00">Ownership lease — one live instance per user, across hosts</text>
+    <text class="t lbl" x="80" y="425">atomic claim in Postgres · renewed on a TTL · every write carries an epoch</text>
+
+    <rect x="760" y="382" width="356" height="58" rx="8" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+    <text class="t chip" x="776" y="404">Shared database</text>
+    <text class="t lbl" x="776" y="425">Postgres · host registry + instance ownership</text>
+
+    <path class="ln" d="M 590 456 L 590 496"/>
+    <text class="t lbl" x="604" y="482">worker agent protocol (token-authenticated, idempotent per operation)</text>
+
+    <!-- WORKER NODE -->
+    <rect class="box" x="40" y="500" width="1100" height="184" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="64" y="528" fill="#1a7f37">Worker node</text>
+    <text class="t lbl" x="180" y="528">runs the instances — one per user, with all the single-machine semantics kept intact</text>
+
+    <rect x="64" y="542" width="336" height="40" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="567">worker agent (internal HTTP service)</text>
+    <rect x="412" y="542" width="336" height="40" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+    <text class="t chip" x="428" y="567">same spawner as single-machine</text>
+    <rect x="760" y="542" width="356" height="40" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.2"/>
+    <text class="t chip" x="776" y="567">file API · same path-safety code</text>
+
+    <rect class="box" x="64" y="594" width="336" height="72" rx="10"/>
+    <text class="t sec" x="80" y="618" fill="#1a7f37">Instance · user A</text>
+    <text class="t lbl" x="80" y="638">uid 100001 · loopback port only</text>
+    <text class="t lbl" x="80" y="656">own home / workspace / session</text>
+
+    <rect class="box" x="412" y="594" width="336" height="72" rx="10"/>
+    <text class="t sec" x="428" y="618" fill="#1a7f37">Instance · user B</text>
+    <text class="t lbl" x="428" y="638">uid 100002 · loopback port only</text>
+    <text class="t lbl" x="428" y="656">own home / workspace / session</text>
+
+    <rect x="760" y="594" width="356" height="72" rx="8" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+    <text class="t chip" x="776" y="618">Isolation unchanged</text>
+    <text class="t lbl" x="776" y="638">bwrap / uid / scope, memory quota,</text>
+    <text class="t lbl" x="776" y="656">crash backoff &amp; breaker, plugin probes</text>
+
+    <!-- cross-cutting -->
+    <rect x="40" y="696" width="1100" height="48" rx="10" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+    <text class="t chip" x="64" y="718">Protocol discipline — workers dial in to the manager · one idempotency key per operation · the manager is the only writer of ownership</text>
+    <text class="t lbl" x="64" y="736">every host uses the same absolute data root, so an instance keeps the same paths wherever it runs</text>
+  </g>
+</svg>
