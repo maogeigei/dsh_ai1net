@@ -1,5 +1,5 @@
 /**
- * 覆盖网络 **UDP 打洞探测**（序㊵ · P2 · S5）。
+ * 覆盖网络 **UDP 打洞探测**（P2 · S5）。
  *
  * ## 它做什么（照抄成熟做法的最小集，⛔ 不发明）
  * ① 本机绑一个 **UDP 口**（端口从**参数表区间**取：`PUNCH_PORT_BASE` ＋ `PUNCH_PORT_SPAN`）；
@@ -17,7 +17,7 @@
  *
  * ## 🧪 离线夹具（文件末段 · ⛔ 不进生产接线路径）
  * 打洞的**成功路径**需要"两台机器 + 两个会做 NAT 映射的网络"。云上那条真机腿被**云安全组**挡着
- * （见 `设计说明` §2-3），⇒ 本模块自带一个
+ * （见 `设计文档` §2-3），⇒ 本模块自带一个
  * **NAT 模拟器**（{@link SimulatedNat} ＋ {@link runPunchPair}）：它用**真的 `dgram` socket**
  * 跑**同一份打洞代码**，只是把"两跳 NAT"用回环上的四个 socket ＋ 两份映射表来表现。
  * ⇒ 机器断言证明的是"**这段打洞逻辑**在 NAT 穿透场景下成立"，⛔ **不是**"公网一定能打洞"。
@@ -29,7 +29,7 @@ import { createSocket, type Socket } from 'node:dgram'
 
 import { isIpv6, type DirectAddress } from './candidate.js'
 
-/** 打洞 socket 的**端口基址**（沿用序⑥ S4 观察器用过的 21100 段 ⇒ ⛔ 不新造魔数）。 */
+/** 打洞 socket 的**端口基址**（沿用S4 观察器用过的 21100 段 ⇒ ⛔ 不新造魔数）。 */
 export const PUNCH_PORT_BASE = 21100
 
 /** 打洞端口区间跨度 ⇒ `[21100, 21116)`。⚠️ **UDP** 口，与 `LISTEN_ALLOWED_RANGES`（TCP）**不同族**。 */

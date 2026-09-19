@@ -1,5 +1,5 @@
 /**
- * 中继失败切流 · **唯一一份实现**（覆盖网络 · 序⑦）
+ * 中继失败切流 · **唯一一份实现**（覆盖网络）
  *
  * ## 为什么只能是"唯一一份"
  * 本线已经吃过两次**同类**教训：`translateEndpoint` 漏赋值、`target()` 静默回退
@@ -24,7 +24,7 @@
  *   ⇒ `grep -c '^\[relay-switch\]'` 与 `switches` **必然相等**（判别器可断言）。
  *   ⚠️ 所以"**没切**"的行必须用**另一个前缀** `[relay-skip]` —— 否则计数对不上（E9 会红）。
  *
- * ## 序⑧（2026-09-17）新增：**冷却语义的不对称拆分**（解决"候选池被自己耗干"）
+ * ## （2026-09-17）新增：**冷却语义的不对称拆分**（解决"候选池被自己耗干"）
  * - **D1**：**「当前通道已不可用」有权打破自己刚设下的冷却；「目录说该换回首位」没有**。
  *   ⇒ `replace()` 新增 `origin: 'health' | 'directory'`，闸门**只对 directory 收口**。
  * - **D2**：冷却键**仍是 url**；新增 `kind`（`switched-away` / `open-failed`）**只**决定豁免优先级。
@@ -33,11 +33,11 @@
  *   ⇒ 重置该 url 冷却**且本周期不再豁免**（⛔ 否则每 2 s 试一次 = 重试风暴）。
  * - **D5**：豁免优先级 = `switched-away` 优先，同类按 `untilMs` 升序。
  * - **D3 护栏**：豁免**只在 D6 现场**启用；**有干净候选时行为逐字不变**（单测 F15 锁住）。
- * - **D6 开关**：`RELAY_FAILOVER_EXEMPT`（默认 `1`；置 `0` ⇒ 逐字回到序⑦ 行为）＝ 第二层回滚。
+ * - **D6 开关**：`RELAY_FAILOVER_EXEMPT`（默认 `1`；置 `0` ⇒ 逐字回到行为）＝ 第二层回滚。
  */
 
 /**
- * 序㉖：`jitter` 主序与"劣化即切"的**唯一实现**都在 `jitter.ts` ⇒ 本文件只做三件事：
+ * `jitter` 主序与"劣化即切"的**唯一实现**都在 `jitter.ts` ⇒ 本文件只做三件事：
  * ① 采样（把当前通道的 `rttMs` 喂进 tracker）② 判定（调 `pickJitterTarget`）③ 记数 + 告警。
  * ⛔ 不许在本文件里再写一份 p95/排序 —— 那正是"另一份实现 = 另一处静默失效"的复发点。
  */
@@ -69,10 +69,10 @@ export interface RelayFailoverThresholds {
    */
   upTimeoutMs: number
   /**
-   * **序⑧ 新增：一跳豁免总开关**（`RELAY_FAILOVER_EXEMPT`，默认开）。
+   * **新增：一跳豁免总开关**（`RELAY_FAILOVER_EXEMPT`，默认开）。
    *
    * 语义 = "**当前这条已经挂了**"有权打破自己刚设下的冷却（见 {@link RelayFailoverSupervisor.pickExemptTarget}）。
-   * 置 `0` ⇒ 逐字回到序⑦ 行为（D6 现场只写 `[relay-skip]`、不切换）⇒ **第二层回滚**。
+   * 置 `0` ⇒ 逐字回到行为（D6 现场只写 `[relay-skip]`、不切换）⇒ **第二层回滚**。
    * ⚠️ 与 `minAttempts <= 0`（把整个监管器关掉）**不是同一层级**，⛔ 不许合并（D6 口径）。
    */
   exempt: boolean
@@ -81,7 +81,7 @@ export interface RelayFailoverThresholds {
 /**
  * 从 env 读阈值（**值格必须纯数字**；非纯数字一律回退默认值并在日志里说清）。
  *
- * 键名与本线参数表 `参数表_覆盖网络_20260917.md` 的 `RELAY_FAILOVER_*` 一一对应。
+ * 键名与本线参数表的 `RELAY_FAILOVER_*` 一一对应。
  */
 export function relayFailoverThresholds(
   env: Record<string, string | undefined> = process.env,
@@ -134,19 +134,19 @@ export interface RelayFailoverDeps {
   setTimerImpl?: (fn: () => void, ms: number) => unknown
   clearTimerImpl?: (handle: unknown) => void
   /**
-   * **序㉖：抖动采样表**。
+   * **抖动采样表**。
    *
    * - 缺省（`undefined`）⇒ 用**进程级共享 tracker**（{@link sharedJitterTracker}）——
    *   装配点（`src/web/server.ts` / `src/worker/relay-tunnel.ts` / `src/net/relay/main.ts`）
-   *   都**不在序㉖ 的在册文件集**里，做成"必须注入"= 生产上永远不会被注入 = **静默失效**。
-   * - 显式给 `null` ⇒ **本监管器不参与 jitter 排序与劣化切换**（逐字回到序⑧ 行为，夹具用）。
+   *   都**不在原有的在册文件集**里，做成"必须注入"= 生产上永远不会被注入 = **静默失效**。
+   * - 显式给 `null` ⇒ **本监管器不参与 jitter 排序与劣化切换**（逐字回到行为，夹具用）。
    * - 集成/单测可传自己的实例（⛔ 别用共享单例做断言 —— 会与别的用例串味）。
    */
   jitterTracker?: JitterTracker | null
 }
 
 /**
- * **冷却原因**（序⑧ / D2）：⛔ **不作冷却表的键**，只决定**豁免优先级**（D5）。
+ * **冷却原因**（/ D2）：⛔ **不作冷却表的键**，只决定**豁免优先级**（D5）。
  *
  * - `switched-away` —— "**我们主动离开了它**"，它**曾可用**（{@link RelayFailoverSupervisor.replace} 换址成功那条）⇒ 优先豁免。
  * - `open-failed` —— "**刚证明它建不起来**"（`open()` 失败那条）⇒ 次选。
@@ -157,7 +157,7 @@ export interface RelayFailoverDeps {
  */
 export type RelayCooldownKind = 'switched-away' | 'open-failed'
 
-/** 冷却表条目（序⑧ / D2 + D4）。 */
+/** 冷却表条目（/ D2 + D4）。 */
 export interface RelayCooldownEntry {
   /** 解除时刻（epoch ms）。 */
   untilMs: number
@@ -182,22 +182,22 @@ export interface RelayFailoverStats {
   noCandidateChecks: number
   /** "新通道建不起来 ⇒ 保持原通道"的次数（D4 的现场证据）。 */
   openFailed: number
-  /** **序⑧ 新增**：走"一跳豁免"完成的切换次数（⊆ `switches`；这些行都带 `｜豁免`）。 */
+  /** **新增**：走"一跳豁免"完成的切换次数（⊆ `switches`；这些行都带 `｜豁免`）。 */
   exemptSwitches: number
   /**
-   * **序㉖ 新增**：因 **jitter 劣化**触发的换址次数（⊆ `switches`；这些行都带 `｜jitter`）。
+   * **新增**：因 **jitter 劣化**触发的换址次数（⊆ `switches`；这些行都带 `｜jitter`）。
    *
    * 🔑 为什么必须有这个数：本序的判据是"**超阈值自动切路径并告警**"——如果只写日志不留计数，
    * 脚本就无法断言"它到底切过没有"（本线已有两次同类教训：只写日志的实现让判据形同虚设）。
    */
   jitterSwitches: number
-  /** **序㉖ 新增**：成功记入 tracker 的 RTT 采样次数（= 0 ⇒ 采样链断了，必须能看出来）。 */
+  /** **新增**：成功记入 tracker 的 RTT 采样次数（= 0 ⇒ 采样链断了，必须能看出来）。 */
   jitterSamples: number
-  /** **序㉖ 新增**：当前通道抖动量超标（`p95|ΔRTT| ≥ JITTER_LIMIT_MS`）的巡检次数。 */
+  /** **新增**：当前通道抖动量超标（`p95|ΔRTT| ≥ JITTER_LIMIT_MS`）的巡检次数。 */
   jitterAlerts: number
   /** 最近一次成功切换的时刻（epoch ms）。 */
   lastSwitchAtMs?: number
-  /** 冷却表中的地址与解除时刻（⚠️ 保持 `{url, untilMs}` 外形；`kind` 为序⑧ 追加的只读字段）。 */
+  /** 冷却表中的地址与解除时刻（⚠️ 保持 `{url, untilMs}` 外形；`kind` 为追加的只读字段）。 */
   cooldown: { url: string; untilMs: number; kind: RelayCooldownKind }[]
 }
 
@@ -208,11 +208,11 @@ export class RelayFailoverSupervisor {
   private readonly now: () => number
   private readonly setTimer: (fn: () => void, ms: number) => unknown
   private readonly clearTimer: (handle: unknown) => void
-  /** 序㉖：抖动采样表（`undefined` = 本序能力关闭 ⇒ 一切逐字回到序⑧ 行为）。 */
+  /** 抖动采样表（`undefined` = 本序能力关闭 ⇒ 一切逐字回到行为）。 */
   private readonly jitter: JitterTracker | undefined
 
   private current: RelayChannelHandle | undefined
-  /** 冷却表：**键 = url**（单一事实：冷却期内该地址不可用）；值是 {@link RelayCooldownEntry}（序⑧ 结构化）。 */
+  /** 冷却表：**键 = url**（单一事实：冷却期内该地址不可用）；值是 {@link RelayCooldownEntry}（结构化）。 */
   private readonly cooling = new Map<string, RelayCooldownEntry>()
   private switches = 0
   private checks = 0
@@ -225,7 +225,7 @@ export class RelayFailoverSupervisor {
   private lastJitterLogAtMs: number | undefined
   private lastSwitchAtMs: number | undefined
   private lastSkipLogAtMs: number | undefined
-  /** 序㉖：上一次记入 tracker 的样本（用于"同一份缓存读数只记一次"的门限）。 */
+  /** 上一次记入 tracker 的样本（用于"同一份缓存读数只记一次"的门限）。 */
   private lastJitterSample: { url: string; rttMs: number; atMs: number } | undefined
   private timer: unknown
   private running = false
@@ -250,7 +250,7 @@ export class RelayFailoverSupervisor {
     this.clearTimer = deps.clearTimerImpl ?? ((h): void => clearTimeout(h as ReturnType<typeof setTimeout>))
     this.th = { ...relayFailoverThresholds({}), ...(deps.thresholds ?? {}) }
     /**
-     * 序㉖：`null` ⇒ 关闭（逐字回到序⑧）；`undefined` ⇒ 共享单例（默认，装配点零改动）。
+     * `null` ⇒ 关闭（逐字回到原行为）；`undefined` ⇒ 共享单例（默认，装配点零改动）。
      * ⚠️ `?? ` 会把 `null` 也当成"没给"，所以必须**先显式判 `null`** —— 这是本行唯一的坑。
      */
     this.jitter = deps.jitterTracker === null ? undefined : deps.jitterTracker ?? sharedJitterTracker()
@@ -306,7 +306,7 @@ export class RelayFailoverSupervisor {
    *
    * 成功 → 关旧、记冷却、`switches += 1`、写一行 `[relay-switch]`；失败 → 原通道**原样保留**。
    *
-   * ## 序⑧：`origin` = 「这条换址**有没有**打破冷却的权力」（D1）
+   * ## `origin` = 「这条换址**有没有**打破冷却的权力」（D1）
    * - `'directory'` ⇒ ⛔ **没有**。它的触发条件（"目录里的地址变了"）与"旧通道是否可用"**无关**；
    *   给它豁免权 ⇒ "当前站在 106、目录首位是 47"的每一轮巡检都想把刚冷却的 47 换回来 ⇒
    *   **两位互相抢 = D5 想防的那个抖动风暴**（真机 11:43:26 已实测踩到）。
@@ -334,7 +334,7 @@ export class RelayFailoverSupervisor {
      * ⇒ **抖动抑制形同不存在**（D5 的意图被另一条路径绕开）。
      * ⇒ 统一在这一处把关：**directory 路径**上，冷却期内的目标**一律不换**。
      *
-     * 序⑧（D1）：闸门**只对 `'directory'` 收口** —— `'health'` 传进来的"冷却中目标"就是一跳豁免本身。
+     * （D1）：闸门**只对 `'directory'` 收口** —— `'health'` 传进来的"冷却中目标"就是一跳豁免本身。
      */
     const now = this.now()
     const entry = this.cooling.get(targetUrl)
@@ -423,13 +423,13 @@ export class RelayFailoverSupervisor {
   }
 
   /**
-   * 序㉖：从**当前通道**读一次 RTT 样本并记入 tracker（返回当前通道的 jitter，未知 ⇒ `undefined`）。
+   * 从**当前通道**读一次 RTT 样本并记入 tracker（返回当前通道的 jitter，未知 ⇒ `undefined`）。
    *
    * 两级取值：
    * ① `health().rttMs` —— 接口位（实现方愿意投影就投影）；
    * ② **鸭子类型兜底** `(handle).client.status().rttMs` —— 真实装配点（`src/web/server.ts` 的
    *    `toHandle` 与 `src/worker/relay-tunnel.ts` 的 `healthOf`）**只投影了三个字段**，而它们
-   *    **不在序㉖ 的在册文件集**里 ⇒ 兜底读 `client.status()` 是**唯一**能让真机采到样本的路径。
+   *    **不在原有的在册文件集**里 ⇒ 兜底读 `client.status()` 是**唯一**能让真机采到样本的路径。
    *    ⚠️ 代价：耦合"句柄身上挂着 client"这个装配事实 ⇒ 用**全可选 + 拿不到就返回 `undefined`**
    *    兜住：拿不到只是"没样本"，⛔ **不抛、不影响换址**。
    *
@@ -463,7 +463,7 @@ export class RelayFailoverSupervisor {
   }
 
   /**
-   * 序㉖：**"jitter 劣化即切"**（`E2`）—— 通道**健康但抖得厉害**时，换到更稳的候选。
+   * **"jitter 劣化即切"**（`E2`）—— 通道**健康但抖得厉害**时，换到更稳的候选。
    *
    * ⛔ 三条边界（都是本线已有判据，⛔ 不许动）：
    * 1. **不碰冷却语义**：候选池仍要过 `blocked`（当前 + 冷却中的）⇒ jitter 换址**没有**打破
@@ -522,10 +522,10 @@ export class RelayFailoverSupervisor {
   /**
    * 一次巡检：**当前通道不健康 ⇒ 换到链里的下一条**（排除当前 + 冷却中的）。
    *
-   * ⛔ 不健康但无候选 ⇒ 序⑧ 之前是**什么都不做**（D6：原地退避，⛔ 不切到空 / 不静默回退默认机）；
-   * 序⑧ 起：**先试一次"一跳豁免"**（D1/D4/D5），拿不到豁免对象才回到原地退避。
+   * ⛔ 不健康但无候选 ⇒ 之前是**什么都不做**（D6：原地退避，⛔ 不切到空 / 不静默回退默认机）；
+   * 起：**先试一次"一跳豁免"**（D1/D4/D5），拿不到豁免对象才回到原地退避。
    *
-   * 序㉖：**每次巡检都先采一个 RTT 样本**（不论健康与否 —— 直方图没数据就判不出"劣化"），
+   * **每次巡检都先采一个 RTT 样本**（不论健康与否 —— 直方图没数据就判不出"劣化"），
    * 健康时额外判一次"**抖动劣化即切**"（{@link considerJitterSwitch}）。
    */
   async tick(): Promise<void> {
@@ -552,13 +552,13 @@ export class RelayFailoverSupervisor {
     for (const [url, e] of this.cooling) if (e.untilMs > now) blocked.add(url)
     /**
      * ⚠️ **这段文案是 D3 的护栏本身**：稳态（有干净候选）路径上必须**逐字不变** ——
-     * 否则序⑦ 的 E1–E11 结论会被本单"自己推翻自己"。
+     * 否则原有的 E1–E11 结论会被本项目"自己推翻自己"。
      */
     const reason =
       `当前通道不健康（state=${h.state} attempts=${h.attempts} unhealthyForMs=${h.unhealthyForMs}` +
       ` ≥ 阈值 minAttempts=${this.th.minAttempts}/graceMs=${this.th.graceMs}）`
     /**
-     * 序㉖：**候选顺序 = jitter 为主序**（`E1`）。⚠️ tracker 无样本时 `orderByJitter` 返回
+     * **候选顺序 = jitter 为主序**（`E1`）。⚠️ tracker 无样本时 `orderByJitter` 返回
      * **原数组本身** ⇒ 与改造前逐字一致（`D3` 的护栏因此仍然成立）。
      */
     const target = orderByJitter(urls, this.jitter).find((u) => !blocked.has(u))
@@ -569,7 +569,7 @@ export class RelayFailoverSupervisor {
     /**
      * ═══ **D6 现场**：链里除"当前 + 冷却中的"之外**没有候选** ═══
      *
-     * 序⑧ 的立项依据正是这里：生产目录 3 条候选里有 **2 条同机**，一次 47 故障就把它们
+     * 原有的立项依据正是这里：生产目录 3 条候选里有 **2 条同机**，一次 47 故障就把它们
      * **同时**耗进冷却 ⇒ 杀另一台时"唯一可能的出路"被自己设的冷却挡住 ⇒
      * 真机读数 `仍在冷却（剩 59201ms / 共 300000ms）` ⇒ **最长 ~300 s 不切流**。
      *

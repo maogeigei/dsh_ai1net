@@ -38,7 +38,7 @@ import {
 } from './identity.js'
 import { OPS_NETWORK, describeDialers, normalizeDialers } from './network.js'
 import { ContentRuntime } from './content/runtime.js'
-// 🆕 序㉘ · 单 B：组密钥装载（缺省不启用；具名失败 ⇒ 不启用并留痕）
+// 🆕 单 B：组密钥装载（缺省不启用；具名失败 ⇒ 不启用并留痕）
 import { openContentCipher } from './content/crypto.js'
 import { DEFAULT_RELAY_PORT, RelayServer } from './server.js'
 
@@ -111,7 +111,7 @@ function loadKeys(args: Args): RelayKeyMap {
 }
 
 /**
- * 序③：relay 侧的**身份校验配置**（受信签名者 / 吊销清单 / 是否强制）。
+ * relay 侧的**身份校验配置**（受信签名者 / 吊销清单 / 是否强制）。
  *
  * **失败关闭落在这里**：配了 `DSH_AI1NET_OVERLAY_REQUIRE_IDENTITY=1` 却拿不出任何受信签名者
  * ⇒ **起动即抛**（⛔ 不"先起来，慢慢拒"）。理由与 `assertNetworkId` 同款 ——
@@ -152,10 +152,10 @@ function loadIdentityForServer(log: (line: string) => void): {
 }
 
 /**
- * 换址用的**非抛版**等待（序⑦）：`--client` 的 `open()` 要的是"能不能起来"这个布尔，
+ * 换址用的**非抛版**等待：`--client` 的 `open()` 要的是"能不能起来"这个布尔，
  * 起不来就交回 `undefined`，由监管器决定"保持原通道"（D4）。
  *
- * 🔴 **序⑨ · RC-1（C3 装配点）**：实现已抽到 {@link waitUpOnStatus}（三个装配点共用一份，D7）；
+ * 🔴 **RC-1（C3 装配点）**：实现已抽到 {@link waitUpOnStatus}（三个装配点共用一份，D7）；
  * 相对改造前的唯一差别 = **终态失败（死候选）立即 `false`**，⛔ 不再白等满 `upTimeoutMs`。
  */
 async function waitUpOn(client: RelayClient, timeoutMs: number, log?: (line: string) => void): Promise<boolean> {
@@ -194,7 +194,7 @@ async function main(): Promise<void> {
     )
     const identity = loadIdentityForServer(log)
     /**
-     * 序㉔ 内容分发：**内容面运行时装配 ＋ 判别器注入**。
+     * 内容分发：**内容面运行时装配 ＋ 判别器注入**。
      *
      * ⚠️ relay 是**独立进程**，而平台侧的装配点在 `src/web/server.ts` —— 两者不共享进程内存。
      * ⇒ 首轮实测 `OBS-17 FAIL ❌ 缺 content 块缺失`（探针读的是 relay 的 `/status`）。
@@ -207,7 +207,7 @@ async function main(): Promise<void> {
      *   那会把 E1 的"零回源"做成假绿，正是本线的老病根）；
      * - 参数就地读 `DSH_AI1NET_CONTENT_*` env（⛔ 不进 `config.ts`，避免制造合并冲突）。
      *
-     * 🆕 **序㉘ · 单 B（组密钥加密）**：加密**缺省不启用** —— 只有配了
+     * 🆕 **单 B（组密钥加密）**：加密**缺省不启用** —— 只有配了
      * `DSH_AI1NET_CONTENT_GROUP_KEY_FILE` 且文件通过全部前置校验（存在 / `0600` / 组名与网名匹配 /
      * 密钥形状对 / epoch 正整数）才装载。任一条不过 ⇒ **不启用 ＋ 一行具名判别器日志**
      * （⛔ 绝不"以为加密了其实没加"）。启用了加密 ⇒ **块 id 挂密文**（"β′"）。
@@ -243,7 +243,7 @@ async function main(): Promise<void> {
     const contentStatusProvider = (): Record<string, unknown> =>
       contentRuntime.snapshot() as unknown as Record<string, unknown>
     /**
-     * 🆕 序㊻ · C（域分离）：**启动判别器**（防"装了但没生效"）。
+     * 🆕 C（域分离）：**启动判别器**（防"装了但没生效"）。
      *
      * ⛔ 不打印域密钥本体（它是密钥材料）—— 只打印**可公开指纹**。
      * 🔑 该指纹是"两机口径一致"的比对位：47 与 106 逐字相同才说明同一块 id 口径。
@@ -283,8 +283,8 @@ async function main(): Promise<void> {
           if (cryptoOk === false) log('[content] ⚠️ 加密自证未通过（详见 content-crypto 日志）')
           return
         }
-        // ── 序㉔ 原路径（⛔ 不启用加密时逐字保留，行为不许变）
-        // 🔴 序㊻ · C：本分支**恒有** `netKey === undefined`（它就是 `cryptoEnabled === false` 的那一支）
+        // ── 原路径（⛔ 不启用加密时逐字保留，行为不许变）
+        // 🔴 C：本分支**恒有** `netKey === undefined`（它就是 `cryptoEnabled === false` 的那一支）
         //    ⇒ 显式传 `contentRuntime.netKey` 而不是省略，是为了让"调用点是否过 netKey"**在源码上可核**
         //    （⛔ 漏一处的代价 = 每个块都判校验失败且极难定位）。
         const { blockIdOf } = await import('./content/chunker.js')
@@ -314,7 +314,7 @@ async function main(): Promise<void> {
     await server.start()
     if (dialers.size > 0) log(`[relay] 拨号方白名单：${describeDialers(dialers).join(',')}`)
     log(
-      `[relay] 身份（序③）：受信签名者 ${identity.trustedSignerKeys.length} 把，` +
+      `[relay] 身份：受信签名者 ${identity.trustedSignerKeys.length} 把，` +
         `强制=${identity.requireIdentity ? 'on' : 'off'}，吊销 hostId ${identity.revocations?.hosts.length ?? 0} 个`,
     )
     const shutdown = (sig: string): void => {
@@ -340,7 +340,7 @@ async function main(): Promise<void> {
   }
   /**
    * ⚠️ **必须在这里收进常量**：上面那两句校验把 `args.hostId` 收窄成 `string`，
-   * 但下面 `buildClient` 是**闭包**（序⑦ 换址时要在运行期再建客户端）——
+   * 但下面 `buildClient` 是**闭包**（换址时要在运行期再建客户端）——
    * TS 的收窄**不进闭包**，直接引用会退回 `string | undefined`。
    */
   const hostId: string = args.hostId
@@ -379,7 +379,7 @@ async function main(): Promise<void> {
     )
   }
   /**
-   * 序③：本机节点身份（与 worker / Manager 走**同一个装配入口**）。
+   * 本机节点身份（与 worker / Manager 走**同一个装配入口**）。
    *
    * ⚠️ **缺凭据不抛**（本轮是"先加能力"的过渡期）：`identity` 缺省 ⇒ 退回纯 HMAC，
    * 与存量行为完全一致。**强制**与否由 relay 侧决定 —— 客户端这边只负责"有就带上"。
@@ -390,7 +390,7 @@ async function main(): Promise<void> {
     log,
   })
   /**
-   * 序⑦ · **C3 装配点：中继失败切流**。
+   * **C3 装配点：中继失败切流**。
    *
    * 一句话：`--url` / `DSH_AI1NET_RELAY_URL`（env 显式）**压制引导链**，此时**不启用**监管器
    * —— 运维把地址钉死了，就不该由我们背着它换。走引导链来的地址才启用。

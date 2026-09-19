@@ -30,12 +30,12 @@ import { hostNameIndex, relayEndpointTarget } from '../net/relay/endpoint-target
 import { loadClientIdentity } from '../net/relay/identity.js'
 import { RelayFailoverSupervisor, relayFailoverThresholds } from '../net/relay/switcher.js'
 import type { RelayChannelHandle } from '../net/relay/switcher.js'
-// ── 序㉔ 内容分发（块级内容寻址 · 同网段 peer 优先）────────────────────────────
-// ⛔ 装配仅"接线"，不改 presence / 端点翻译 / 切流既有逻辑（设计说明 §3.1）。
+// ── 内容分发（块级内容寻址 · 同网段 peer 优先）────────────────────────────
+// ⛔ 装配仅"接线"，不改 presence / 端点翻译 / 切流既有逻辑（设计文档 §3.1）。
 import { ContentStore } from '../net/relay/content/store.js'
 import { ContentSourceChain } from '../net/relay/content/source.js'
 import { ContentPeerGroup } from '../net/relay/content/peer.js'
-// 🆕 序㉘ · 单 B：组密钥装载（平台侧**缺省不启用**；具名失败 ⇒ 不启用并留痕）
+// 🆕 单 B：组密钥装载（平台侧**缺省不启用**；具名失败 ⇒ 不启用并留痕）
 import { openContentCipher } from '../net/relay/content/crypto.js'
 import { LocalSpawner } from '../supervisor/orchestrator.js'
 import { LeasedSpawner } from '../supervisor/leased-spawner.js'
@@ -365,7 +365,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
    */
   const hostVia = new Map<string, string>()
   /**
-   * **`hostId` → 逻辑名** 索引（序㉑ P-2）—— `translateEndpoint` 的**唯一入口**。
+   * **`hostId` → 逻辑名** 索引（P-2）—— `translateEndpoint` 的**唯一入口**。
    *
    * 🔑 为什么必须有它：`RemoteSpawner` 调翻译器时只给得到**裸 hostId**
    * （`endpointFor` → `translateEndpoint(host.hostId, raw)`），而上面每张表的键都是**逻辑名**
@@ -392,15 +392,15 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
    *
    * 🔑 存在的唯一理由是**初始化顺序**：`/status` 轮询的首次调用发生在拨号通道建立**之前**，
    * 那时 `failover` 还在 TDZ 里（直接引用会 `ReferenceError`）。而把 `failover` 提前声明成
-   * `let` 又会丢掉"当前通道只有**一个**权威来源"这条纪律（序⑦ 为它专门收敛过）。
+   * `let` 又会丢掉"当前通道只有**一个**权威来源"这条纪律（为它专门收敛过）。
    * ⇒ 用一个可空函数引用，**谁都不破坏**。
    */
   let currentClientRef: (() => RelayClient | undefined) | undefined
   const currentClient = (): RelayClient | undefined => currentClientRef?.()
   /**
-   * 序⑲ presence：**订阅是否新鲜** —— D5「主路径 / 兜底」的**唯一开关**。
+   * presence：**订阅是否新鲜** —— D5「主路径 / 兜底」的**唯一开关**。
    *
-   * ⚠️ 必须是函数而不是布尔量：通道会被换址（序⑦），"订阅有没有"随通道走 ⇒ 每次调用现读。
+   * ⚠️ 必须是函数而不是布尔量：通道会被换址，"订阅有没有"随通道走 ⇒ 每次调用现读。
    * `undefined`（还没起通道 / 已切走）也算不新鲜 ⇒ 回退 `/status`，语义安全。
    */
   const presenceLive = (): boolean => currentClient()?.presenceFresh() === true
@@ -423,7 +423,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
   const refreshRelay = async (): Promise<void> => {
     if (config.relayStatusUrl === '') return
     /**
-     * 🔑 **序⑲ 的核心收益点**：订阅生效期间**一次都不拉**（E-判据：稳态 `/status` 命中 = 0）。
+     * 🔑 **原有的核心收益点**：订阅生效期间**一次都不拉**（E-判据：稳态 `/status` 命中 = 0）。
      * ⛔ 不是"删掉轮询"（D5：`/status` 是回滚链的一环）—— 只是**在不需要时不拉**。
      */
     notePollGate(presenceLive())
@@ -518,7 +518,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
       ports: [],
       dialer: true,
       /**
-       * 序③：Manager 也是**一台机器**，同样要证明"被授权进入这张网"。
+       * Manager 也是**一台机器**，同样要证明"被授权进入这张网"。
        * 与 worker 侧同一装配入口（`loadClientIdentity`）⇒ 两侧只有一种写法。
        */
       identity: loadClientIdentity({
@@ -552,7 +552,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
       return undefined
     }
     /**
-     * 序⑲ presence：**订阅本网全部在线态**（第 3 条：订阅式扇出）。
+     * presence：**订阅本网全部在线态**（第 3 条：订阅式扇出）。
      *
      * ⚠️ 放在口池绑定**成功之后**：绑不上就等于这条通道没有，订阅了也没人消费，
      * 反而会留下"subs=1 但没人用"的假象。订阅失败不影响通道本身（自动回退 `/status`）。
@@ -561,7 +561,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
     return { client, dialer }
   }
   /**
-   * 序⑦：**通道句柄把 dialer 一起带着走** —— `relayDialer` 不再是一个独立可变量，
+   * **通道句柄把 dialer 一起带着走** —— `relayDialer` 不再是一个独立可变量，
    * 而是"监管器当前通道"的投影。这样"当前是谁"只有**一个**权威来源，
    * ⛔ 不会出现"监管器已切到新通道、别处还拿着旧 dialer"的分叉。
    */
@@ -597,10 +597,10 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
     cacheFile: config.overlayDirectoryCacheFile,
     log: overlayLog,
   })
-  /** 序⑦ 切流阈值（唯一一份默认值在 `switcher.ts`；这里只是取一份实例）。 */
+  /** 切流阈值（唯一一份默认值在 `switcher.ts`；这里只是取一份实例）。 */
   const failoverThresholds = relayFailoverThresholds()
   /**
-   * ── 序㉗：**候选链取址的唯一入口（含只读观测）** ──
+   * ── **候选链取址的唯一入口（含只读观测）** ──
    *
    * 两处**既有**调用点（下面对监管器给的 `candidates` 与 {@link refreshOverlay}）共用本函数：
    * ① 候选**只在同一处**被解析 ⇒ ⛔ **不新增任何网络 I/O**（`refreshOverlay` 本来就要解析一次）；
@@ -622,12 +622,12 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
   /**
    * 换址版等待：**非抛**，只回答"通没通"（`open` 要的是布尔）。
    *
-   * 🔴 **序⑨ · RC-1（C1 装配点）**：实现已抽到 `net/relay/client.ts#waitUpOnStatus`
+   * 🔴 **RC-1（C1 装配点）**：实现已抽到 `net/relay/client.ts#waitUpOnStatus`
    * （三个装配点共用一份，D7）。相对改造前的**唯一**差别 = **终态失败（死候选）立即返回 `false`**，
    * ⛔ 不再白等满 `upTimeoutMs`。
    * ⚠️ 为什么这里最痛：生产目录前两条候选**同在 47**（见下面 `open` 的注释）⇒ 每次从 47 切走
    * **必然**先试同机的 `relay-direct`（已随 47 一起死）⇒ 白等 ≡ `upTimeoutMs`(12 000 ms)，
-   * 实测两样本逐行复核（序⑨ §2-P10）。**慢候选（连得上、只是 `up` 来得晚）不受影响**。
+   * 实测两样本逐行复核（§2-P10）。**慢候选（连得上、只是 `up` 来得晚）不受影响**。
    */
   const waitUpOn = (client: RelayClient, timeoutMs: number): Promise<boolean> =>
     waitUpOnStatus(client, timeoutMs, {
@@ -638,7 +638,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
         ),
     })
   /**
-   * **中继失败切流的唯一实现**（序⑦ · C1 装配点）。
+   * **中继失败切流的唯一实现**（C1 装配点）。
    *
    * 触发信号全部复用现成状态机（D2）：`RelayClient.status()` 的 `state/attempts/unhealthyForMs`
    * ——⛔ 不新造心跳、不新增探测帧。
@@ -665,7 +665,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
       }
       return toHandle(url, started)
     },
-    /** 序㉗：走 `resolveChain` ⇒ 每次解析都落进观测（`E3` 的可断言面）；返回值与原实现逐字一致。 */
+    /** 走 `resolveChain` ⇒ 每次解析都落进观测（`E3` 的可断言面）；返回值与原实现逐字一致。 */
     candidates: async () => (await resolveChain()).urls,
     log: overlayLog,
     thresholds: failoverThresholds,
@@ -676,7 +676,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
   // 把「当前通道的 client」接上去（`presenceLive()` / `presenceOf()` 的取数入口）。
   currentClientRef = () => (failover.channel as C1Handle | undefined)?.client
   /**
-   * 序⑲：**订阅推送**给出的在线态（主路径，D5）。
+   * **订阅推送**给出的在线态（主路径，D5）。
    *
    * 返回 `undefined` 的两种情况**都必须回退兜底**（⛔ 不许把它当 `false`）：
    * ① 订阅不新鲜（没订阅 / 已断 / 老 relay 不认 `SUB`）；② 这条 host 不在推送范围。
@@ -704,7 +704,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
      */
     failover.start()
     /**
-     * 序㉗：启动候选链**周期重发**（幂等、`unref()`、⛔ 零网络 I/O —— 只重发上次快照）。
+     * 启动候选链**周期重发**（幂等、`unref()`、⛔ 零网络 I/O —— 只重发上次快照）。
      * 与监管器的关系：监管器**只在需要换址时**解析，而探针是**事后**读 ⇒ 没有它就可能读不到行。
      * ⚠️ 只在 `dialerEnabled` 时启动 —— 没有拨号通道就**不是 relay 客户端**，此时"候选数"无意义，
      * 观测行**应当缺席**（探针会把"该路径无观测行"判红并点名，⛔ 不制造一行假 `unresolved`）。
@@ -720,13 +720,13 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
    * 所以分成两步：**启动只用"缓存 / 种子"起来（启动不依赖网络）**，随后后台再取一次目录；
    * 地址**真的变了**才换通道（无变化时零动作、零日志噪音）。
    *
-   * 序⑦：换址动作统一走 {@link RelayFailoverSupervisor.replace}（"先建新、成功再关旧" +
+   * 换址动作统一走 {@link RelayFailoverSupervisor.replace}（"先建新、成功再关旧" +
    * 冷却表 + `[relay-switch]` 日志 + `switches` 计数），⛔ 不再在本函数里自己关旧通道。
    */
   const refreshOverlay = async (): Promise<void> => {
     if (!dialerEnabled) return
     /**
-     * 序㉗：改走 `resolveChain()` —— 与原 `resolveOverlayRelay(...)` **逐字等价**（证明见 `resolveChain`），
+     * 改走 `resolveChain()` —— 与原 `resolveOverlayRelay(...)` **逐字等价**（证明见 `resolveChain`），
      * 但**每次目录刷新都落进候选观测** ⇒ Manager 侧观测行天然每 `refreshAfterSeconds` 更新一次
      * （⛔ 不需要为观测另加一次网络往返）。
      */
@@ -736,7 +736,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
     if (nextUrl === '' || nextUrl === cur) return
     overlayLog(`[overlay-dir] 🔁 目录给出的地址变了：${cur} -> ${nextUrl}（source=${chain.source}）⇒ 换拨号通道`)
     /**
-     * 序⑧（D1）：显式声明 `'directory'` —— 这条换址的触发条件（"目录里的地址变了"）与
+     * （D1）：显式声明 `'directory'` —— 这条换址的触发条件（"目录里的地址变了"）与
      * "旧通道是否可用"**无关** ⇒ ⛔ **没有打破冷却的权力**（有的话，"当前站在 106、目录首位是 47"
      * 的每一轮巡检都会把刚冷却的 47 换回来 = 两位互相抢 = D5 想防的抖动风暴）。
      */
@@ -773,7 +773,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
               //    （`RelayDialer` 里带日志地拒掉）⇒ 绝不会把别张网的落点发出去。
               const dialed = currentDialer()?.localPortFor(name, port)
               if (dialed !== undefined) return `127.0.0.1:${dialed}`
-              // ② 回退：**订阅推送**带来的回环落点（序⑲：订阅新鲜时它才是唯一在更新的那份）
+              // ② 回退：**订阅推送**带来的回环落点（订阅新鲜时它才是唯一在更新的那份）
               const pushed = presenceLocalPort(name, port)
               if (pushed !== undefined) return `127.0.0.1:${pushed}`
               // ③ 再回退：relay 快照（只有"没订阅 / 订阅不新鲜"时才会走到这里 —— 即 R3 的原路径）
@@ -799,7 +799,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
               return currentDialer() !== undefined
             },
             /**
-             * 序⑲：**主路径 = 订阅推送**（新鲜时它是权威答案，`online` 那条兜底就不会被调用）。
+             * **主路径 = 订阅推送**（新鲜时它是权威答案，`online` 那条兜底就不会被调用）。
              * 返回 `undefined` ⇒ 回落到上面 `online`（= R3 的既有行为，一行未改）。
              */
             presence: presenceOnline,
@@ -815,7 +815,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
      * 在此之前它只是"表里有、没人读"，于是控制面所有键（地址表 / via 表 / 端口表 /
      * relay 端点表 / 拨号口池）都按**裸 hostId**，两张网各有一台同名 host 时会**互相覆盖**。
      *
-     * ⚠️ 序㉑ P-2：映射由 `hostNameIndex` 统一提供（闭包 `translateEndpoint` 用的是**同一份**），
+     * ⚠️ P-2：映射由 `hostNameIndex` 统一提供（闭包 `translateEndpoint` 用的是**同一份**），
      * 这里只是把它读出来；`??` 那支是**类型兜底**（索引按 `rows` 建 ⇒ 实际不可达）。
      */
     const nameOf = (row: { id: string; networkId: string }): string =>
@@ -897,9 +897,9 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
     return candidates[0].id
   }
   /**
-   * ── 序㉔ 内容分发装配（块级内容寻址 · 同网段 peer 优先）──────────────────────
+   * ── 内容分发装配（块级内容寻址 · 同网段 peer 优先）──────────────────────
    *
-   * ⚠️ **本块是"仅装配"**（设计说明 §3.1）：只把 `store` / `source` / `peer` 三个纯逻辑模块
+   * ⚠️ **本块是"仅装配"**（设计文档 §3.1）：只把 `store` / `source` / `peer` 三个纯逻辑模块
    * **接线并暴露计数**，⛔ 不改 presence、不改端点翻译、不改切流、不新开监听口（R5）。
    *
    * **回滚 = 整段移除本块**（§6 装配级回滚）：新模块文件留着不加载 ⇒ 零副作用。
@@ -910,12 +910,12 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
    * - `edge` / `region` / `origin` —— **本阶段未装配**（缺档 ⇒ 链按"该档没有"处理并**照样计数**，
    *   这正是 `ContentSourceChain` 纪律 2/3 要的行为：⛔ 不许因为没装配就静默缩短链路）。
    *
-   * ⚠️ 之所以敢先不装配 `origin`：本单的 E1 判据（回源 ≈ 1 份 × 组数）测的是
+   * ⚠️ 之所以敢先不装配 `origin`：本项目的 E1 判据（回源 ≈ 1 份 × 组数）测的是
    * "**同组内多台只回源一次**"，判据落在 `local` / `peer` 两档的命中计数上；
    * 真回源路径（平台代理层）本就在 `proxy.ts`，与本块正交。
    *
-   * 🔴 **两个参数就地读 env（⛔ 不进 `config.ts`）**：`config.ts` **不在本单在册文件集**
-   *   （设计说明 §3.1）⇒ 动它 = 命中 §9-2 回头条件（超范围）。故装配层就地取：
+   * 🔴 **两个参数就地读 env（⛔ 不进 `config.ts`）**：`config.ts` **不在本项目在册文件集**
+   *   （设计文档 §3.1）⇒ 动它 = 命中 §9-2 回头条件（超范围）。故装配层就地取：
    *   - `CONTENT_STORE_MAX_BYTES` —— 块缓存上限（缺省 64 MiB，见 `store.ts` 推算）；
    *   - `CONTENT_GROUP` —— 本节点在内容面上的**组名**（缺省 `local`）。
    *   ⚠️ 二者都是"纯新增、缺省可用"⇒ 不设也不影响既有行为（⛔ 不动任何既有键）。
@@ -926,12 +926,12 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
       : undefined
   const contentGroup = process.env.CONTENT_GROUP ?? 'local'
   /**
-   * 🆕 序㉘ · 单 B：**平台侧接入加密，但缺省不启用**。
+   * 🆕 单 B：**平台侧接入加密，但缺省不启用**。
    *
    * 🔑 为什么平台侧**默认关**：① 平台进程服务真实用户，密钥落点越少越好（单内 §7.2
    * "密钥本体只走 `0600` 落文件"）；② `OBS-23` 的读取面是 **relay** 的 `/status`
    * ⇒ 判据在 relay 侧成立即可；③ `peer` 取回通道尚未接线 ⇒ 跨进程密钥一致性今天**不构成收益**。
-   * ⚠️ 要开只需配 `CONTENT_GROUP_KEY_FILE`（**纯新增、缺省可用** ⇒ 不设即回到序㉔ 行为）。
+   * ⚠️ 要开只需配 `CONTENT_GROUP_KEY_FILE`（**纯新增、缺省可用** ⇒ 不设即回到行为）。
    */
   const platformKeyFile = process.env.CONTENT_GROUP_KEY_FILE ?? ''
   const platformGraceMs = Number(process.env.CONTENT_EPOCH_GRACE_MS ?? '')
@@ -1027,7 +1027,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
              */
             translateEndpoint: (hostId, ep) => {
               /**
-               * 🔴 **序㉑ P-2：先把裸 hostId 换成逻辑名**（控制面所有表的键口径）。
+               * 🔴 **P-2：先把裸 hostId 换成逻辑名**（控制面所有表的键口径）。
                *
                * 原实现直接 `hostVia.get(hostId)` ⇒ **恒 `undefined`** ⇒ 早退原样透传 ⇒
                * 这个闭包整体是**死分支**（翻译从未生效；`translateEndpoint` 的第一版还漏过赋值）。
@@ -1041,7 +1041,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
                 dialedPort:
                   name === undefined ? () => undefined : () => currentDialer()?.localPortFor(name, ep.port),
                 /**
-                 * 🔴 **序㉒ P-2b：第 ②' 级 = 订阅推送落点**。
+                 * 🔴 **P-2b：第 ②' 级 = 订阅推送落点**。
                  *
                  * 必须与 `addressOf`（上方 `RelayRendezvous`）的三级链**同源、同顺序**：
                  * ① 拨号落点 → ② `presenceLocalPort` → ③ relay 快照。少这一级时，P-1 修好之后
@@ -1202,7 +1202,7 @@ export async function buildServer(config: ServerConfig): Promise<FastifyInstance
   await app.register(dshRoutes)
   await app.register(domainRoutes)
   await app.register(overlayRoutes)
-  // 序㊵（P2/S5）：覆盖网络**管理面**（节点清单只读 ＋ 直连开关读写）—— 全部走 requireAdmin
+  // （P2/S5）：覆盖网络**管理面**（节点清单只读 ＋ 直连开关读写）—— 全部走 requireAdmin
   await app.register(overlayNodeRoutes)
   await app.register(skillRoutes)
   await app.register(whitelistRoutes)

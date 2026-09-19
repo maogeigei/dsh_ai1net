@@ -1,5 +1,5 @@
 /**
- * 同网段 peer 发现与取块 —— **分组隔离的 peer 视图**（覆盖网络线 序㉔ · 内容分发）。
+ * 同网段 peer 发现与取块 —— **分组隔离的 peer 视图**（覆盖网络线 内容分发）。
  *
  * ## 一句话说清它是什么
  * 维护一张"**谁在哪个组、持有哪些块**"的表，并回答两个问题：
@@ -10,7 +10,7 @@
  * Delivery Optimization 的 group mode 对应物：**按（用户/团队网, 局域网）分组**共享。
  * ⛔ 不分组 = 一张巨网里"谁的块都能拿" ⇒ 一旦某台设备被控，它能**下毒到别的租户**
  * 而内容哈希只能保证"块没被改"，**保证不了"它本来就该拿到这块"**（可见性 ≠ 完整性）。
- * ⇒ 分组是本单"权限只准收窄"红线（R5）的落点。
+ * ⇒ 分组是本项目「权限只准收窄」这条硬性约束的落点。
  *
  * ## 三条纪律
  * 1. **跨组必须显式拒绝 + 计数**：返回空数组**不算拒绝**（调用方分不清"没有"与"不许"）
@@ -20,9 +20,9 @@
  *    ⛔ 与 `store.get` 的**读侧校验**是两回事（后者才是 E4 的真闸门）。
  *
  * ## ⛔ 本模块**不做**的事（故意）
- * - 不做传输（取块走 `source.ts` 注入的 fetcher，底层复用既有 wss 通道，见设计说明 §7）；
+ * - 不做传输（取块走 `source.ts` 注入的 fetcher，底层复用既有 wss 通道，见设计文档 §7）；
  * - 不做广播 / mDNS（本阶段"发现"由 relay 的在册会话表喂进来；⛔ 不新开公网口＝R5）；
- * - 不做房间层（不在本单范围）。
+ * - 不做房间层（不在本项目范围）。
  *
  * @module dsh_ai1net/net/relay/content/peer
  */
@@ -38,7 +38,7 @@ export interface PeerDeclaration {
   /** 它声明持有的块 id。 */
   holds: readonly string[]
   /**
-   * 🆕 序㉘ · 单 B：该 peer 的**组密钥 epoch**。
+   * 🆕 单 B：该 peer 的**组密钥 epoch**。
    * ⚠️ 与本节点不一致 ⇒ **不作为候选**（它的块 id 是另一代口径 ⇒ 取回来也拼不上）。
    */
   epoch?: number
@@ -51,7 +51,7 @@ export const PEER_COUNTER_KEYS = [
   'crossGroupDenied',
   'declarations',
   'withdrawn',
-  // 🆕 序㉘ · 单 B：epoch 不一致被跳过的次数（⛔ 它**不是**跨组拒绝 —— 两者必须可区分）
+  // 🆕 单 B：epoch 不一致被跳过的次数（⛔ 它**不是**跨组拒绝 —— 两者必须可区分）
   'epochMismatch',
 ] as const
 
@@ -85,7 +85,7 @@ export interface ContentPeerGroupOptions {
   network: string
   /** 本节点所属组。 */
   group: string
-  /** 🆕 本节点的组密钥 epoch（给了才做 epoch 一致性判定；缺省 ⇒ 与序㉔ 逐字一致）。 */
+  /** 🆕 本节点的组密钥 epoch（给了才做 epoch 一致性判定；缺省 ⇒ 与逐字一致）。 */
   epoch?: number
   /** 日志函数（观测辅助；⛔ 不替代计数）。 */
   log?: (line: string) => void
@@ -113,7 +113,7 @@ interface RegisteredPeer {
  */
 export class ContentPeerGroup {
   private readonly self: { network: string; group: string; key: string }
-  /** 🆕 本节点 epoch（`undefined` = 不做 epoch 判定，保持序㉔ 行为）。 */
+  /** 🆕 本节点 epoch（`undefined` = 不做 epoch 判定，保持行为）。 */
   private readonly selfEpoch: number | undefined
   private readonly peers = new Map<string, RegisteredPeer>()
   private readonly maxCandidates: number

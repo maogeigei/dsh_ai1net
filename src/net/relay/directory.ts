@@ -39,7 +39,7 @@ import {
   type KeyObject,
 } from 'node:crypto'
 /**
- * 序㉖：候选链的**排序输入**（jitter 主序）。
+ * 候选链的**排序输入**（jitter 主序）。
  *
  * ⚠️ 这三个名字是**本序新增**的唯一跨模块依赖方向：`directory` → `jitter`（⛔ 反向不许有，
  * 否则 `jitter` 里就会长出一份取址 —— 本线"另一份实现 = 另一处静默失效"的教训）。
@@ -47,7 +47,7 @@ import {
 import { orderByJitter, sharedJitterTracker, type JitterTracker } from './jitter.js'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-// 序④（443/TCP 兜底 · L1）：**取目录这一腿也要走地址覆盖**（另一处注入点在 `client.ts` 的建连点）。
+// （443/TCP 兜底 · L1）：**取目录这一腿也要走地址覆盖**（另一处注入点在 `client.ts` 的建连点）。
 import { ensureOverlayAddrOverrides } from './addr-override.js'
 
 /** 目录端点的**固定路径**（服务端注册、客户端派生都用它，⛔ 不要在调用方各写一份）。 */
@@ -363,11 +363,11 @@ export function toRelayUrl(entry: string): string | undefined {
  * 顺序 = `relays[]` → `bootstrap[]`（控制面下发的**有序**清单，⛔ 不重排）；
  * 按 `host` 去重（同一台机器在多条清单里各写一遍只算一个候选）；非法项跳过。
  *
- * ## 为什么需要"全部"而不是"第一个"（序⑦ · 本函数存在的理由）
+ * ## 为什么需要"全部"而不是"第一个"（本函数存在的理由）
  * 改造前 `pickFromDoc` **取到第一个可用项就 `return`** ⇒ 候选集退化成**单点**：
  * 目录里排第二的那台中继**永远选不中**（除非首位此刻不可用）。后果是"换址"这条路径形同虚设
  * —— 重解析一百次，拿回来的还是同一个字符串 ⇒ 上层按"地址没变"直接 `return`。
- * ⇒ **根因是"候选集退化成单点"，不是"没写重解析"**（对序⑥ §8.8-1 的证据级细化）。
+ * ⇒ **根因是"候选集退化成单点"，不是"没写重解析"**（对§8.8-1 的证据级细化）。
  */
 function listCandidatesFromDoc(doc: OverlayDirectory): string[] {
   const out: string[] = []
@@ -400,7 +400,7 @@ function hostKeyOf(url: string): string | undefined {
 }
 
 /**
- * **同源优先**（序④ · 443/TCP 兜底）：目录是**哪个 origin 答出来的**，就优先用它的同源中继入口。
+ * **同源优先**（443/TCP 兜底）：目录是**哪个 origin 答出来的**，就优先用它的同源中继入口。
  *
  * ## 为什么必须有这一条
  * `relays[]` 是控制面下发的**有序**清单，而 `pickFromDoc` 取的是**首位**（= 主入口）。
@@ -601,7 +601,7 @@ export interface ResolveOverlayRelayOptions {
   nowMs?: number
   timeoutMs?: number
   /**
-   * **要排除的地址**（序⑦ · 中继失败切流）：通常 = "刚刚不健康的那一台"。
+   * **要排除的地址**（中继失败切流）：通常 = "刚刚不健康的那一台"。
    *
    * 语义 = "在这份候选链里**跳过**这些地址，取第一个没被排除的"。作用范围**只在选择这一步**
    * —— ⛔ 它**不会**让任何候选凭空出现：被排除后若没有别的候选，返回 `url: ''`
@@ -611,7 +611,7 @@ export interface ResolveOverlayRelayOptions {
    */
   exclude?: readonly string[]
   /**
-   * **抖动采样表**（序㉖ · 骨干稳定选路的输入）。
+   * **抖动采样表**（骨干稳定选路的输入）。
    *
    * - 缺省（`undefined`）⇒ 用进程级共享 tracker（{@link sharedJitterTracker}）—— **装配点零改动**
    *   就能让"候选链按 jitter 排序"生效（⛔ 不做成"必须注入"：装配点在别的文件里，
@@ -623,7 +623,7 @@ export interface ResolveOverlayRelayOptions {
 }
 
 /**
- * 引导链算出的**有序候选集**（序⑦ 新增）。
+ * 引导链算出的**有序候选集**（新增）。
  *
  * 与 {@link OverlayRelayResolution} 的区别：后者只有 `url`（首位），这里给**整条链**，
  * 供"首位不健康时换下一个"使用。`source` / `detail` / `refreshAfterSeconds` 语义不变。
@@ -637,7 +637,7 @@ export interface OverlayRelayCandidates {
 }
 
 /**
- * **引导三级链的单一入口**：给出**整条有序候选链**（序⑦ 起）。
+ * **引导三级链的单一入口**：给出**整条有序候选链**（起）。
  *
  * 任何情况下都不抛异常（最坏返回 `urls: []`）—— 调用方按"未配 relay"处理即可。
  * ⛔ **取址代码只有这一份**：{@link resolveOverlayRelay} 与 {@link listOverlayRelayCandidates}
@@ -648,7 +648,7 @@ async function resolveOverlayRelayChain(
 ): Promise<OverlayRelayCandidates> {
   const log = opts.log ?? ((): void => undefined)
   /**
-   * 序④（443/TCP 兜底 · L1）：**取目录这一腿也必须走地址覆盖**。
+   * （443/TCP 兜底 · L1）：**取目录这一腿也必须走地址覆盖**。
    *
    * 为什么少这一处 L1 就不成立：CF 不可用时，若目录还按 DNS 去取，则第 ③ 步（取目录）会
    * **全 origin 失败**，链只能走到第 ⑤ 步 —— 而 ⑤ 回落的是 `seeds[0]`（主入口 = 同样走 CF）
@@ -661,7 +661,7 @@ async function resolveOverlayRelayChain(
   const timeoutMs = opts.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS
   const seeds = opts.seeds.map((s) => s.trim()).filter((s) => s !== '')
   /**
-   * ── 序㉖：**候选排序 = jitter 为主序**（用户口径「连接稳定高效」的落点）──
+   * ── **候选排序 = jitter 为主序**（用户口径「连接稳定高效」的落点）──
    *
    * - `opts.jitterTracker === null` ⇒ 不排序（对照实验 / 夹具）；
    * - 缺省 ⇒ 进程级共享 tracker（{@link sharedJitterTracker}）⇒ 装配点**零改动**即生效；
@@ -724,10 +724,10 @@ async function resolveOverlayRelayChain(
     }
     writeCachedDirectory(cacheFile, got.doc, got.sig, now)
     /**
-     * **同源优先**（序④）：谁答出的目录，就先认它的同源中继入口 —— 否则主入口一挂，
+     * **同源优先**：谁答出的目录，就先认它的同源中继入口 —— 否则主入口一挂，
      * 客户端会一直去连 `relays[]` 的首位（= 主入口），兜底入口形同不存在。见 {@link sameOriginRelayUrl}。
      *
-     * ⚠️ 序⑦：同源优先必须作用在**整条链**上（"同源那条排第一，原首位排其后"），
+     * ⚠️ 同源优先必须作用在**整条链**上（"同源那条排第一，原首位排其后"），
      * ⛔ 不是"只看首位" —— 否则候选集又会退化成单点。见 {@link listCandidatesFromDoc}。
      */
     const list = listCandidatesFromDoc(got.doc)
@@ -786,7 +786,7 @@ async function resolveOverlayRelayChain(
 }
 
 /**
- * **引导链的有序候选集**（序⑦）：把整条链交给调用方，供"当前中继不健康 ⇒ 换下一个"使用。
+ * **引导链的有序候选集**：把整条链交给调用方，供"当前中继不健康 ⇒ 换下一个"使用。
  *
  * ⛔ 只是 {@link resolveOverlayRelayChain} 的转发 —— **不另写一份取址**。
  * 与 {@link resolveOverlayRelay} 的关系：本函数**不套用 `exclude`**（它要的是"候选全集"）。
@@ -801,7 +801,7 @@ export async function listOverlayRelayCandidates(
  * **引导三级链的单一入口**：给出"这次该连哪个中继地址"（= 候选链首位）。
  * 任何情况下都不抛异常（最坏返回 `url: ''`）—— 调用方按"未配 relay"处理即可。
  *
- * 序⑦ 起它是 {@link resolveOverlayRelayChain} 的**薄包装**：链 → 剔除 `exclude` → 取第一个。
+ * 起它是 {@link resolveOverlayRelayChain} 的**薄包装**：链 → 剔除 `exclude` → 取第一个。
  * **`exclude` 缺省时与改造前逐字一致**（D9）。
  */
 export async function resolveOverlayRelay(

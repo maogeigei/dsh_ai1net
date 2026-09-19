@@ -166,7 +166,7 @@ export interface ServerConfig {
   instancePortSpan: number
   // ── 覆盖网络 P0-2 引导三级链（`net/relay/directory.ts`）─────────────────
   /**
-   * **本机所属的网**（P0-1 的 `network_id`）。运维网 = `ops`（47 / 106 / 未来的中继）；
+   * **本机所属的网**（P0-1 的 `network_id`）。运维网 = `ops`（本机与未来的中继）；
    * 用户设备用 `u:<userId>`。它进目录文档的 `network` 字段（**被签名覆盖**）。
    */
   overlayNetworkId: string
@@ -187,7 +187,7 @@ export interface ServerConfig {
   overlayDirKeyFile: string
   /** 目录缓存文件（客户端侧）。空 ⇒ 不缓存（每次取目录，多一次往返）。 */
   overlayDirectoryCacheFile: string
-  // ── 覆盖网络 序③ 一机一钥 + 信任根（`net/relay/identity.ts`）────────────
+  // ── 覆盖网络 一机一钥 + 信任根（`net/relay/identity.ts`）────────────
   /**
    * **本机节点私钥**文件路径（Ed25519 PEM，**0600**、属主必须是跑 dsh 的那个用户）。
    * 空 ⇒ 本机不发起身份（只做 HMAC，过渡期形态）。
@@ -671,7 +671,7 @@ export function resolveConfig(overrides: ConfigOverrides = {}): ServerConfig {
       process.env.DSH_AI1NET_OVERLAY_DIR_CACHE ??
       join(dataRoot, 'overlay', 'directory.json')
     ).trim(),
-    // 覆盖网络 序③：本机节点身份（一机一钥 + 入网凭据）。
+    // 覆盖网络 本机节点身份（一机一钥 + 入网凭据）。
     // **两个都配了**才发起身份 ⇒ 不配 = 与今天行为一致（只做 HMAC）；配了却读不出来 ⇒ 起动即抛
     //（见 `net/relay/identity.ts#loadClientIdentity` —— 静默退化成"没身份"会让"凭据坏了"
     //  表现成"一切正常"，等 relay 一开强制就整台失联）。

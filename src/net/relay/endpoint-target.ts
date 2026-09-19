@@ -1,5 +1,5 @@
 /**
- * 覆盖网络 R4 / 序㉑ **P-2** / 序㉒ **P-2b**：`translateEndpoint` 的**纯判定**部分（+ 键口径索引）。
+ * 覆盖网络 R4 / **P-2** / **P-2b**：`translateEndpoint` 的**纯判定**部分（+ 键口径索引）。
  *
  * ## 它治的是什么
  *
@@ -22,11 +22,11 @@
  * | 未知 host（不在 `dsh_hosts` 里） | **原样透传**（保持老行为：单机 / 默认 host 不受影响） |
  * | `via` 不是 `relay`（`local` / `manager-ssh`） | **原样透传**（隧道是同号反向转发，两边口号相同） |
  * | `via = relay`：① 拨号落点 | `127.0.0.1:<拨号口>` |
- * | `via = relay`：② **订阅推送落点**（序㉒ P-2b） | `127.0.0.1:<推送口>` |
+ * | `via = relay`：② **订阅推送落点**（P-2b） | `127.0.0.1:<推送口>` |
  * | `via = relay`：③ relay 快照落点 | `127.0.0.1:<快照口>` |
  * | `via = relay`：三级都没有 | **`unreachable`（⛔ 绝不原样透传）** |
  *
- * 🔴 **三级链必须与地址解析链逐级对齐**（序㉒ P-2b）：`src/web/server.ts#RelayRendezvous.addressOf`
+ * 🔴 **三级链必须与地址解析链逐级对齐**（P-2b）：`src/web/server.ts#RelayRendezvous.addressOf`
  * 的链是 ① 拨号 → ② `presenceLocalPort`（订阅推送）→ ③ relay 快照。本判定**只做两级**时，
  * P-1 修好之后会**真的**判错：门判据改成「订阅已建立 ∧ 链路活着」后订阅新鲜期长期成立
  * ⇒ 快照（③）趋冷，而拨号池（①）在"该 host 的槽位分不出来"时也给不出落点 ⇒ 落到"两级都没有"
@@ -72,7 +72,7 @@ export interface RelayEndpointTargetInput {
    */
   dialedPort: () => number | undefined
   /**
-   * **订阅推送**里的回环落点（序㉒ P-2b）—— 即 `presenceLocalPort(name, port)` 的结果。
+   * **订阅推送**里的回环落点（P-2b）—— 即 `presenceLocalPort(name, port)` 的结果。
    *
    * `undefined` = 订阅不新鲜 / 该 host 不在推送范围 / 该端口没有落点（三种都交给下一级兜底）。
    * ⚠️ 这里收的是**已经解析出来的值**（不是 thunk）：`presenceLocalPort` 是纯内存查表、无副作用

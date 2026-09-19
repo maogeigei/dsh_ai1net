@@ -187,7 +187,7 @@ export function buildWorkerAgent(
             })(),
             staticPorts,
             /**
-             * 序⑦ · **C2 装配点：中继失败切流**。
+             * **C2 装配点：中继失败切流**。
              *
              * ⛔ **不改会合面**：起始地址仍然是上面那个 `rendezvousRaw`（= `DSH_AI1NET_RENDEZVOUS_URL`
              * 的既有取值顺序，一行没动）。这里只补一件事 —— 起始那台**不健康**时，
@@ -210,7 +210,7 @@ export function buildWorkerAgent(
                 ).urls,
             },
             /**
-             * 序③：**本机节点身份**。配了 `DSH_AI1NET_OVERLAY_NODE_KEY_FILE` + `..._NODE_GRANT_FILE`
+             * **本机节点身份**。配了 `DSH_AI1NET_OVERLAY_NODE_KEY_FILE` + `..._NODE_GRANT_FILE`
              * 才会带上（缺省 = 只做 HMAC，过渡期形态不变）。
              * ⚠️ **配了却读不出来 ⇒ 起动即抛**（见 `identity.ts#loadClientIdentity`）——
              * 静默退化成"没身份"会让"凭据坏了"表现成"一切正常"，等 relay 一开强制就整台失联。

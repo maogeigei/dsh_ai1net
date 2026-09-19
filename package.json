@@ -1,6 +1,6 @@
 {
   "name": "dsh_ai1net",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "license": "AGPL-3.0-only",
   "description": "DSH 用户平台（DSH Users Platform）：把 DeepSeek Harness（DSH）变成可对公网运营的多租户服务 —— 注册审核、每用户隔离实例、网页桌面、插件与技能管理、一键部署。",
   "type": "module",

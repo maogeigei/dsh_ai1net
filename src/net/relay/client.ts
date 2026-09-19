@@ -49,7 +49,7 @@ import { MUX, decodeMux, encodeJsonFrame, encodeMux, parseJsonPayload, type MuxF
 import { OPS_NETWORK, NAME_SEP, assertNetworkId, logicalName } from './network.js'
 import { signProof, publicKeyOfPrivate, type NodeGrant } from './identity.js'
 import { MuxDuplex } from './duplex.js'
-// 序④（443/TCP 兜底 · L1）：地址覆盖（只依赖 node 内建，**无循环依赖**）。
+// （443/TCP 兜底 · L1）：地址覆盖（只依赖 node 内建，**无循环依赖**）。
 import { ensureOverlayAddrOverrides } from './addr-override.js'
 
 /** 内建 `WebSocket` 的最小接口（Node 22 提供客户端实现；**不引 `ws`**）。 */
@@ -89,7 +89,7 @@ export interface RelayClientOptions {
   /** 预共享密钥（hex，与 relay 服务端 `keys` 里这一项**逐字节相同**）。 */
   secret: string
   /**
-   * **本机的节点身份**（覆盖网络 序③）：私钥 PEM + 入网凭据（`grant` 及其签名）。
+   * **本机的节点身份**（覆盖网络）：私钥 PEM + 入网凭据（`grant` 及其签名）。
    *
    * 给了它 ⇒ `HELLO` 会多带四个字段（`nodeKey` / `grant` / `grantSig` / `nodeSig`），
    * relay 侧据此做**辅助**准入；**不给** ⇒ 退回纯 HMAC（存量形态，不强制时照旧可用）。
@@ -199,7 +199,7 @@ export interface RelayClientStatus {
   bytesIn: number
   bytesOut: number
   /**
-   * **本轮"不健康"的起点**（序⑦ · 中继失败切流的触发信号）。
+   * **本轮"不健康"的起点**（中继失败切流的触发信号）。
    *
    * 定义：**首次进入 `backoff` 的时刻**（epoch ms）；恢复 `up` 时**清空**。
    * ⚠️ `handshaking` / `connecting` **不计入**不健康 —— "正在握手" ≠ "挂了"，
@@ -213,7 +213,7 @@ export interface RelayClientStatus {
   /** 距 {@link RelayClientStatus.unhealthySinceMs} 已过去多久（ms）；健康 ⇒ `0`。 */
   unhealthyForMs: number
   /**
-   * **是否还在"计划内重启"的 burst 窗口内**（序⑨ 加；`gracefulBurstMs` 窗口，默认 15 s）。
+   * **是否还在"计划内重启"的 burst 窗口内**（加；`gracefulBurstMs` 窗口，默认 15 s）。
    *
    * 🔑 存在的唯一理由：**换址等待必须能区分"对端正在重启"与"这台真挂了"**。
    * 两者在 `state` 上都表现为 `backoff`，靠 `state` 一个字分不开；而 burst 窗口是
@@ -224,7 +224,7 @@ export interface RelayClientStatus {
    */
   inGracefulBurstWindow: boolean
   /**
-   * **presence 订阅视图**（序⑲）—— 订阅侧的判别器。
+   * **presence 订阅视图**—— 订阅侧的判别器。
    *
    * 🔑 存在的理由：控制面必须能回答「**我现在到底还在不在推送上**」—— 否则"订阅静默失效"
    * 与"这张网里确实没人"完全同形（本线头号教训）。判据 = `state==='subscribed'` ＋
@@ -368,7 +368,7 @@ export class RelayClient {
 
   private ws: WebSocketLike | undefined
   /**
-   * 序④（443/TCP 兜底 · L1）：**地址覆盖**是否已在建连点装过。
+   * （443/TCP 兜底 · L1）：**地址覆盖**是否已在建连点装过。
    * 只装一次（`ensureOverlayAddrOverrides` 幂等），避免每次重连都解析 env。
    */
   private addrOverridesReady = false
@@ -388,7 +388,7 @@ export class RelayClient {
   private upCount = 0
   private restarts = 0
   /**
-   * 序⑦：**本轮"不健康"的起点**（首次进入 `backoff` 的时刻；`up` 时清空）。
+   * **本轮"不健康"的起点**（首次进入 `backoff` 的时刻；`up` 时清空）。
    * ⛔ 纯观测量 —— 不参与任何控制流（见 {@link RelayClientStatus.unhealthySinceMs}）。
    */
   private unhealthySince: number | undefined
@@ -429,7 +429,7 @@ export class RelayClient {
   private bytesIn = 0
   private bytesOut = 0
 
-  /* ── presence（序⑲）：订阅 + 本地镜像 ── */
+  /* ── presence：订阅 + 本地镜像 ── */
   /** 订阅范围（`undefined` = 未订阅）。`'all'` = 本网全部；数组 = 点名的逻辑名。 */
   private presenceSub: 'all' | string[] | undefined
   /** 本地镜像：**订阅方唯一该读的在线态来源**（键 = 逻辑名）。 */
@@ -532,7 +532,7 @@ export class RelayClient {
     }
   }
 
-  /* ═══════════ presence 订阅（序⑲）═══════════ */
+  /* ═══════════ presence 订阅═══════════ */
 
   /**
    * **订阅在线态**（`瓶颈落地方案 §1` 第 3 条：订阅式扇出，只推给"正在看的人"）。
@@ -626,7 +626,7 @@ export class RelayClient {
    * （`presenceLinkSilentMaxMs`）—— 兜"半开巡检的 tick 还没到"的那一个极窄窗口，
    * ⛔ 不再当"载荷新鲜度"用。
    *
-   * ⚠️ **已知残余**（写进设计说明，不在此处兜）：relay 侧**静默**清掉订阅而 socket 仍活 ⇒ 本判据
+   * ⚠️ **已知残余**（写进设计文档，不在此处兜）：relay 侧**静默**清掉订阅而 socket 仍活 ⇒ 本判据
    * 察觉不到。当前代码里这条路径**不可达**（唯一清空 `session.subs` 的是显式 `UNSUB`；relay 重启 /
    * 会话回收都会断 socket ⇒ 走 ①/② 的路径被发现）。一旦真出现，正解 = 心跳帧携带订阅态断言，
    * 或周期性 `SNAP` 复核（⛔ 不靠缩短 TTL）。
@@ -760,7 +760,7 @@ export class RelayClient {
   private setState(s: RelayClientState): void {
     if (this.state === s) return
     /**
-     * 序⑦：**只记账、不驱动** —— 首次进入 `backoff` 记起点，回到 `up` 清空。
+     * **只记账、不驱动** —— 首次进入 `backoff` 记起点，回到 `up` 清空。
      * ⚠️ `connecting` / `handshaking` **不碰**这个字段：于是
      * `backoff → connecting → backoff` 这段**持续累计**（"一直连不上"是一个连续事件），
      * 而正常重连成功（`… → up`）会把它清掉。
@@ -773,7 +773,7 @@ export class RelayClient {
 
   private dial(): void {
     /**
-     * 序④（443/TCP 兜底）· L1「去 CF」：**建连点是地址覆盖的唯一注入点**。
+     * （443/TCP 兜底）· L1「去 CF」：**建连点是地址覆盖的唯一注入点**。
      *
      * 为什么不靠 dispatcher：本项目不引 `undici`/`ws`，用的是内建全局 `WebSocket`，
      * 它不接受自定义 dispatcher ⇒「换地址但保留 SNI」只能在**解析层**做（见 `addr-override.ts`）。
@@ -832,7 +832,7 @@ export class RelayClient {
   }
 
   /**
-   * 序③：**身份字段**（`nodeKey` / `grant` / `grantSig` / `nodeSig`）。
+   * **身份字段**（`nodeKey` / `grant` / `grantSig` / `nodeSig`）。
    *
    * ⛔ 不改 MAC 的输入串（见 `onOpen` 理由）；这是**追加**字段，旧服务端会直接忽略。
    * ⛔ 身份**没配就不加这些字段**（而不是加空值）—— 空值会让"未配身份"与"配了但坏了"
@@ -1645,7 +1645,7 @@ function errText(err: unknown): string {
 }
 
 /**
- * 把 `SNAP` / `PRESENCE` 负载里的 `entries` 数组**逐条校验**后再采用（序⑲）。
+ * 把 `SNAP` / `PRESENCE` 负载里的 `entries` 数组**逐条校验**后再采用。
  *
  * 为什么逐条校验而不是 `as RelayPresenceEntry[]`：这是**跨进程**来的数据（WS 帧），
  * 一条字段缺失的条目如果被直接当成事实，症状是"某台机器永远显示离线" ——
@@ -1700,14 +1700,14 @@ export function describeClientStatus(s: RelayClientStatus): string {
 }
 
 /**
- * **`gracefulBurstMs` 的默认值口径**（序⑨ 参数表化）。
+ * **`gracefulBurstMs` 的默认值口径**（参数表化）。
  *
  * 改造前它是本仓**唯一一个不可配的时延常量**（全仓只有 `?? 15_000` 一处、无 env 键、无装配点赋值）
  * ⇒ 运行时无法调，违反本线"阈值零魔数"纪律（`overlay-probe` 的 E6）。
  * 现在：可用 `RELAY_GRACEFUL_BURST_MS` 覆写，**默认值语义逐字不变**（`15_000`）。
  *
  * ⚠️ 改这个值 = **改"计划内重启不触发切流"的窗口长度**（{@link RelayClientStatus.inGracefulBurstWindow}
- * 就是它）⇒ 动它必须先回写设计说明（序⑨ D3：默认值 ⛔ 不许改）。
+ * 就是它）⇒ 动它必须先回写设计文档（D3：默认值 ⛔ 不许改）。
  */
 export function gracefulBurstMsDefault(env: Record<string, string | undefined> = process.env): number {
   const raw = env.RELAY_GRACEFUL_BURST_MS
@@ -1716,12 +1716,12 @@ export function gracefulBurstMsDefault(env: Record<string, string | undefined> =
 }
 
 /**
- * **换址等待的"终态失败"判据**（序⑨ · RC-1 的唯一判据来源）。
+ * **换址等待的"终态失败"判据**（RC-1 的唯一判据来源）。
  *
  * ## 它治的是什么
  * `waitUpOn` 原来只轮询 `state === 'up'`，直到 `deadline` 才 `return false`
  * ⇒ **连不上的死候选**与**连得上但慢的候选**在这一层**不可区分**，代价**恒为 `upTimeoutMs`**。
- * 实测（序⑨ §2-P10 逐行复核）：生产目录前两条候选同在 47（`web/server.ts` 的 `open` 注释已承认
+ * 实测（§2-P10 逐行复核）：生产目录前两条候选同在 47（`web/server.ts` 的 `open` 注释已承认
  * "这个坑一定会踩到"）⇒ 每次从 47 切走**必然**先试同机的 `relay-direct`（已随 47 一起死）
  * ⇒ **固定白等 12 000 ms**：`[relay-skip] ⛔ 新通道起不来` 与 open 发起时刻的间隔 ≡ `upTimeoutMs`。
  *
@@ -1754,11 +1754,11 @@ export interface WaitUpStatusOptions {
 }
 
 /**
- * **换址版"等它到 `up`"** —— 序⑦ 起三个装配点各写一份，序⑨ D7 收口成**唯一一份实现**。
+ * **换址版"等它到 `up`"** —— 起三个装配点各写一份，D7 收口成**唯一一份实现**。
  *
  * 语义：**非抛**，只回答"通没通"（`open()` 要的是布尔）。
  * - 到 `up` ⇒ `true`；
- * - **终态失败**（{@link openedChannelFailedTerminally}）⇒ **立即 `false`**（序⑨ RC-1：⛔ 不白等满）；
+ * - **终态失败**（{@link openedChannelFailedTerminally}）⇒ **立即 `false`**（RC-1：⛔ 不白等满）；
  * - 到 `timeoutMs` ⇒ `false`（**慢候选照旧享受完整预算** —— 护栏用例 F18）。
  *
  * 三处消费点（D7）：`web/server.ts`（C1 · Manager 换址）／`worker/relay-tunnel.ts`

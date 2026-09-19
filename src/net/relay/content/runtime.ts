@@ -1,10 +1,10 @@
 /**
- * 内容面**运行时装配**（覆盖网络线 序㉔ · 内容分发）—— 把三个零件装成一个"能报数"的整体。
+ * 内容面**运行时装配**（覆盖网络线 内容分发）—— 把三个零件装成一个"能报数"的整体。
  *
  * ## 为什么要有这个文件
  * `chunker` / `store` / `source` / `peer` 四个模块都是**纯零件**：它们各自算账，
  * 但**没人把它们装起来**。而 relay 是**独立进程**，它的 `/status` 里没有 `content` 块
- * ⇒ `OBS-17` 在真机模式天生读不到判别器（序㉔ 首轮实测：`FAIL OBS-17 ❌ 缺 content 块缺失`）。
+ * ⇒ `OBS-17` 在真机模式天生读不到判别器（首轮实测：`FAIL OBS-17 ❌ 缺 content 块缺失`）。
  *
  * ⛔ **不合成的后果**（本线的老毛病）：要么靠 `--content-fixture` 假夹具凑绿（假绿），
  * 要么让 `OBS-17` 永远红（判据形同不存在）。两条都不是"解决问题"。
@@ -16,10 +16,10 @@
  *    `source.ts` `PEER_COUNTER_KEYS` `ContentStoreCounters` 完全一致
  *    （探针 `OBS-17` 是逐键 `typeof === 'number'` 断言的，改名 = 静默失效）。
  * 3. **纯新增、可选、缺省可用**：relay 侧没装内容面时，`snapshot()` 返回 `undefined`
- *    ⇒ `/status` 不含 `content` 键 ⇒ 与序㉔ 之前的字节级兼容（⛔ 不改任何既有字段）。
+ *    ⇒ `/status` 不含 `content` 键 ⇒ 与之前的字节级兼容（⛔ 不改任何既有字段）。
  *
- * ## 🆕 序㊶ · S6：`peer` 档**接线**（优先直连 → 回落 wss）
- * 序㉔ 的 `peer` 档是**诚实回"没有"**的空壳（取回通道未接线）。S6 把它接上**两条通道**：
+ * ## 🆕 S6：`peer` 档**接线**（优先直连 → 回落 wss）
+ * 原有的 `peer` 档是**诚实回"没有"**的空壳（取回通道未接线）。S6 把它接上**两条通道**：
  *
  * | 顺序 | 通道 | 是什么 |
  * |---|---|---|
@@ -58,7 +58,7 @@ import { DEFAULT_DIRECT_COOLDOWN_MS, DirectCooldown } from '../direct/punch.js'
 import { DIRECT_ENV_KEY, resolveDirectSwitch } from '../direct/index.js'
 import type { DirectSwitchState } from '../direct/index.js'
 
-/* ── 🆕 序㊶ · S6：`peer` 档取块**通道**（接线） ───────────────────────────────────────── */
+/* ── 🆕 S6：`peer` 档取块**通道**（接线） ───────────────────────────────────────── */
 
 /** peer 档取块通道名。 */
 export type PeerChannelName = 'direct' | 'wss'
@@ -219,7 +219,7 @@ export interface ContentRuntimeOptions {
   /** 本节点在内容面上的**组名**（同组才可互相取块 —— E5）。 */
   group: string
   /**
-   * 🆕 序㉘ · 单 B：组密钥加解密器。**缺省 `undefined` ⇒ 不启用加密**（行为逐字回到序㉔）。
+   * 🆕 单 B：组密钥加解密器。**缺省 `undefined` ⇒ 不启用加密**（行为逐字回到原行为）。
    * ⚠️ 给了它 ⇒ 块 id 挂**密文**（"β′"）、链返回**明文**、`/status` 多一个 `crypto` 块。
    */
   cipher?: ContentCipher
@@ -238,13 +238,13 @@ export interface ContentRuntimeOptions {
   /** 日志函数（可选）。⚠️ ⛔ 不许把明文块塞进日志（`OBS-23` 会扫）。 */
   log?: (line: string) => void
   /**
-   * 🆕 序㊶ · S6：**额外注入**的取块通道（按 {@link PEER_CHANNEL_ORDER} 排顺序）。
+   * 🆕 S6：**额外注入**的取块通道（按 {@link PEER_CHANNEL_ORDER} 排顺序）。
    * ⚠️ 缺省只装内置的 `direct`（见 {@link ContentRuntimeOptions.direct}）；
    * `wss` 通道**必须注入**才有（relay 协议侧暂无内容取回 op）。
    */
   peerChannels?: Partial<Record<PeerChannelName, PeerBlockChannel>>
   /**
-   * 🆕 序㊶ · S6：内置直连通道的选项。
+   * 🆕 S6：内置直连通道的选项。
    * - 缺省 ⇒ 装配（开关读 `process.env` ⇒ 与 `DSH_AI1NET_OVERLAY_DIRECT`「**缺省即开**」一致）；
    * - `false` ⇒ **不装配**（该通道缺 ⇒ 具名 `not-wired`）。
    */
@@ -285,22 +285,22 @@ export interface ContentSnapshot {
   /** 本节点**组内**已声明的 peer 名单（供上层做真机取块接线）。 */
   groupMembers: string[]
   /**
-   * 🆕 序㊶ · S6：**peer 档接线面**（通道顺序 / 具名降级 / **D7 复算闸门**）。
+   * 🆕 S6：**peer 档接线面**（通道顺序 / 具名降级 / **D7 复算闸门**）。
    * ⚠️ 纯新增键 —— 既有消费方（`OBS-17` 只逐键看 `source`/`peer`/`store`）零影响。
    */
   peerWire: PeerWireSnapshot
   /**
-   * 🆕 序㉘ · 单 B：**组密钥加密判别器**（探针 `OBS-23` 的读取口径）。
+   * 🆕 单 B：**组密钥加密判别器**（探针 `OBS-23` 的读取口径）。
    * ⚠️ **不启用加密时本键整体缺席** ⇒ `OBS-23` 记 **SKIP**（"缺省不启用"是合法状态）。
    */
   crypto?: ContentCryptoCounters
   /**
-   * 🆕 序㊻ · C（域分离）：块 id 是否走**per-network keyed hash**。
+   * 🆕 C（域分离）：块 id 是否走**per-network keyed hash**。
    * ⚠️ **未启用域分离时本键整体缺席**（⛔ 不补 `false`）⇒ 与 `crypto` 同一纪律。
    */
   blockIdKeyed?: boolean
   /**
-   * 🆕 序㊻ · C：域密钥的**可公开指纹**（16 hex；⛔ 不是密钥）。
+   * 🆕 C：域密钥的**可公开指纹**（16 hex；⛔ 不是密钥）。
    * 🔑 **跨机口径一致性**的机器判据：47 与 106 必须逐字相同。
    */
   blockIdKeyId?: string
@@ -320,7 +320,7 @@ export class ContentRuntime {
   /** 🆕 组密钥加解密器（`undefined` = 不启用加密）。 */
   readonly cipher: ContentCipher | undefined
   /**
-   * 🆕 序㊻ · C（域分离）：块 id 的**域密钥**（`undefined` = 裸哈希口径 ⇒ 与序㉔ 逐字一致）。
+   * 🆕 C（域分离）：块 id 的**域密钥**（`undefined` = 裸哈希口径 ⇒ 与逐字一致）。
    *
    * 🔑 派生方式 = `cipher.blockIdKeyOf(network)`（组密钥 ＋ network ⇒ 不新增密钥文件 / 不新增 env）。
    * ⇒ **加密与域分离同开同关**：没启用组密钥就没有域密钥，块 id 回到裸哈希（= 回滚路径）。
@@ -330,7 +330,7 @@ export class ContentRuntime {
    */
   readonly netKey: Buffer | undefined
   /**
-   * 🆕 序㊻ · C：域密钥的**可公开指纹**（`undefined` = 未启用域分离）。
+   * 🆕 C：域密钥的**可公开指纹**（`undefined` = 未启用域分离）。
    * ⚠️ 它是"**两机口径是否一致**"的机器判据：47 与 106 的该值必须逐字相同，
    * 否则跨机取块会**全部判校验失败**（而块本身是好的 —— 最难定位的形态）。
    */
@@ -372,7 +372,7 @@ export class ContentRuntime {
     this.network = opts.network
     this.log = opts.log
     this.cipher = opts.cipher
-    // 🆕 序㊻ · C：域密钥与 cipher **同开同关**（⛔ 不新增 env / 不新增密钥文件）。
+    // 🆕 C：域密钥与 cipher **同开同关**（⛔ 不新增 env / 不新增密钥文件）。
     // ⚠️ 顺序：必须在 `new ContentStore` 之前 —— store 的两处复算用它。
     this.netKey = this.cipher?.blockIdKeyOf(opts.network)
     this.blockIdKeyId = this.netKey === undefined ? undefined : keyIdOf(this.netKey)
@@ -384,11 +384,11 @@ export class ContentRuntime {
     this.peers = new ContentPeerGroup({
       network: opts.network,
       group: opts.group,
-      // 🆕 启用加密才做 epoch 一致性判定（缺省 ⇒ 与序㉔ 逐字一致）
+      // 🆕 启用加密才做 epoch 一致性判定（缺省 ⇒ 与逐字一致）
       ...(this.cipher === undefined ? {} : { epoch: this.cipher.epoch }),
       ...(opts.log === undefined ? {} : { log: opts.log }),
     })
-    // ── 🆕 序㊶ · S6：装配取块通道（顺序由 `PEER_CHANNEL_ORDER` 定，⛔ 不在这里排）──────
+    // ── 🆕 S6：装配取块通道（顺序由 `PEER_CHANNEL_ORDER` 定，⛔ 不在这里排）──────
     if (opts.direct !== false) {
       const env = opts.direct?.env ?? process.env
       const switchState = resolveDirectSwitch(env)
@@ -433,7 +433,7 @@ export class ContentRuntime {
   }
 
   /**
-   * 🆕 序㊶ · S6：**peer 档接线的唯一执行点**。
+   * 🆕 S6：**peer 档接线的唯一执行点**。
    *
    * 顺序写死：**候选**（同组，`peer.ts` 的 E5 闸门）→ **通道**（`direct` → `wss`）。
    * 每一步都记账，且三类结果**互相可区分**：
@@ -445,7 +445,7 @@ export class ContentRuntime {
     const cands = this.peers.candidates(id)
     if (cands.length === 0) return undefined
     for (const c of cands) {
-      // 🔴 E5：跨组 ⇒ **显式拒绝**（计数在 `markDenied` 内，语义与序㉔ 逐字不变）
+      // 🔴 E5：跨组 ⇒ **显式拒绝**（计数在 `markDenied` 内，语义与逐字不变）
       if (this.peers.markDenied(c.name, id)) continue
       const ref: PeerRef = { name: c.name, network: c.network, group: c.group }
       for (const name of PEER_CHANNEL_ORDER) {
@@ -512,7 +512,7 @@ export class ContentRuntime {
   }
 
   /**
-   * 🆕 序㊶ · S6：登记一条**直连候选**（**唯一入口**）。
+   * 🆕 S6：登记一条**直连候选**（**唯一入口**）。
    *
    * 🔴 **准入判定不在这里** —— 只接受 S5 `CandidateLedger#judge` 判过 `ok:true` 的结果
    * （那条链路复用 `network.ts#isAllowedDialer`，⛔ 本模块不另写一份白名单）。
@@ -574,9 +574,9 @@ export class ContentRuntime {
   }
 
   /**
-   * 🆕 序㊻ · C：**写侧变换**（加密 ＋ 域密钥）—— 一个对象同时给两样，⛔ 不许只给一半。
+   * 🆕 C：**写侧变换**（加密 ＋ 域密钥）—— 一个对象同时给两样，⛔ 不许只给一半。
    *
-   * ⛔ 不启用组密钥 ⇒ `undefined`（与序㉔ 逐字一致）。🔴 只给 `encode` 不给 `netKey` 的形态
+   * ⛔ 不启用组密钥 ⇒ `undefined`（与逐字一致）。🔴 只给 `encode` 不给 `netKey` 的形态
    * = "块 id 挂密文但不带域维度" ⇒ 正是本线要根治的**静默失效**；所以两样在一个函数里产出。
    */
   private writeTransforms(): ChunkTransforms | undefined {
@@ -586,7 +586,7 @@ export class ContentRuntime {
     return this.netKey === undefined ? { encode } : { encode, netKey: this.netKey }
   }
 
-  /** 🆕 序㊻ · C：**读侧变换**（重组位的解密 ＋ 域密钥）。⚠️ 生产路径的解密在 `source` 链。 */
+  /** 🆕 C：**读侧变换**（重组位的解密 ＋ 域密钥）。⚠️ 生产路径的解密在 `source` 链。 */
   private readTransforms(): ChunkTransforms | undefined {
     const cipher = this.cipher
     if (cipher === undefined) return undefined
@@ -660,7 +660,7 @@ export class ContentRuntime {
     const plain = Buffer.from(marker, 'utf8')
     const ok = cipher.selfProbe(marker, {
       put: (blob) => {
-        // 🔴 序㊻ · C：这里的 id **必须**与 store 的复算口径一致（同样带 `netKey`）。
+        // 🔴 C：这里的 id **必须**与 store 的复算口径一致（同样带 `netKey`）。
         //    漏传 ⇒ `store.put` 抛"块校验失败" ⇒ 启动自证直接失败（= 调用点漏改的现行判据）。
         const id = blockIdOf(blob, this.netKey)
         this.lastProbeId = id
@@ -702,7 +702,7 @@ export class ContentRuntime {
       peerWire: this.peerWireSnapshot(),
       // ⚠️ 不启用加密 ⇒ 本键**整体缺席**（不是补零！补零会让"没启用"与"启用了但零值"同形）
       ...(this.cipher === undefined ? {} : { crypto: this.cipher.counters() }),
-      // 🆕 序㊻ · C（域分离）：**同样"未启用即整体缺席"** —— 由 `blockIdKeyId` 的存在性
+      // 🆕 C（域分离）：**同样"未启用即整体缺席"** —— 由 `blockIdKeyId` 的存在性
       //    区分"没开域分离"与"开了但指纹是空串"（⛔ 不补 false、⛔ 不补空串）。
       ...(this.blockIdKeyId === undefined ? {} : { blockIdKeyed: true, blockIdKeyId: this.blockIdKeyId }),
     }

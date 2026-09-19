@@ -39,7 +39,7 @@ export interface RelayTunnelOptions {
   /** 与 relay 的预共享密钥（hex）。**缺失必须吵** —— 静默回退到别的传输比报错危险得多。 */
   secret: string
   /**
-   * **本机节点身份**（覆盖网络 序③）：私钥 PEM + 入网凭据。
+   * **本机节点身份**（覆盖网络）：私钥 PEM + 入网凭据。
    *
    * 缺省 ⇒ `HELLO` 不带身份字段（过渡期形态，relay 未强制时照旧可用）；
    * 给了 ⇒ relay 侧可按**受信签名者**独立验证"这台机器被授权进入这张网"，
@@ -53,7 +53,7 @@ export interface RelayTunnelOptions {
   log?: (line: string) => void
   webSocketCtor?: WebSocketCtor
   /**
-   * **中继失败切流**（序⑦ · C2 装配点）。给了才启用；不给 ⇒ 行为与改造前**逐字一致**
+   * **中继失败切流**（C2 装配点）。给了才启用；不给 ⇒ 行为与改造前**逐字一致**
    * （启动解析一次、此后钉死 —— 这正是改造前 E9 后半不成立的原因）。
    *
    * ⛔ **候选链只来自"同一份引导链"**（{@link listOverlayRelayCandidates}）⇒ 只可能是
@@ -76,10 +76,10 @@ function healthOf(client: RelayClient): { state: string; attempts: number; unhea
 }
 
 /**
- * 候选链**只读观测**（覆盖网络 · 序㉗）—— E3「**每连接候选数 ≥ 2**」的可机器断言面。
+ * 候选链**只读观测**（覆盖网络）—— E3「**每连接候选数 ≥ 2**」的可机器断言面。
  *
  * ## 为什么需要它（立项依据）
- * 序㉖ §8.1-⑦ 登记的第 ④ 条 = 「**E3 未取得机器断言面**」：候选条数此前**只体现在日志文案里**
+ * §8.1-⑦ 登记的第 ④ 条 = 「**E3 未取得机器断言面**」：候选条数此前**只体现在日志文案里**
  * （`…（候选 3 条）`），脚本无法断言、只能靠人读日志；而"候选集退化成单点"正是本线反复吃亏的
  * 那类**静默失效** —— 上层看起来一切正常（连接照旧能建），只是**再也换不了址**。
  *
@@ -246,9 +246,9 @@ export class RelayTunnel implements WorkerTunnel {
   private readonly failover: RelayFailoverSupervisor | undefined
   /** 起始通道（监管器不在场时它就是唯一通道）。 */
   private readonly initialChannel: TunnelChannel
-  /** 序㉗：候选链只读观测（`failover` 没配 ⇒ `undefined` ⇒ 不产任何观测行）。 */
+  /** 候选链只读观测（`failover` 没配 ⇒ `undefined` ⇒ 不产任何观测行）。 */
   private readonly candidateObs: RelayCandidateObservation | undefined
-  /** 序㉗：启动观测只做一次（自愈会重复调 `ensureMaster()`，重复解析无意义）。 */
+  /** 启动观测只做一次（自愈会重复调 `ensureMaster()`，重复解析无意义）。 */
   private observedOnce = false
 
   constructor(options: RelayTunnelOptions) {
@@ -262,7 +262,7 @@ export class RelayTunnel implements WorkerTunnel {
       return
     }
     /**
-     * 序㉗：候选链观测（E3 的可断言面）。**包在解析器外面** ⇒ 解析结果原样透传给监管器，
+     * 候选链观测（E3 的可断言面）。**包在解析器外面** ⇒ 解析结果原样透传给监管器，
      * ⛔ 不改条数 / ⛔ 不改顺序 / ⛔ 不改失败语义（抛错照旧抛给监管器，观测只在成功时记账）。
      *
      * ⚠️ `scope` 固定写 `worker`：本类在生产上**唯一**的装配点是 worker agent（C2），
@@ -340,7 +340,7 @@ export class RelayTunnel implements WorkerTunnel {
   async ensureMaster(): Promise<void> {
     this.client.start()
     /**
-     * 序㉗：**非阻塞**采一次候选链观测（E3 的可断言面）。
+     * **非阻塞**采一次候选链观测（E3 的可断言面）。
      *
      * 🔴 ⛔ **不许 `await`** —— P0-2 的硬前提是"**启动不依赖网络**"（控制面自己也是客户端，
      * 启动那一刻自己的门户还没 `listen`）⇒ 观测只许**搭车**，⛔ 不许把网络 I/O 塞进启动关键路径。
@@ -355,7 +355,7 @@ export class RelayTunnel implements WorkerTunnel {
     await this.waitUp(this.opts.upTimeoutMs ?? 12_000)
   }
 
-  /** 序㉗：一次性观测。⛔ 失败**只吞掉** —— 观测面不许变成故障源。 */
+  /** 一次性观测。⛔ 失败**只吞掉** —— 观测面不许变成故障源。 */
   private async observeCandidatesOnce(): Promise<void> {
     const obs = this.candidateObs
     const fc = this.opts.failover
@@ -393,10 +393,10 @@ export class RelayTunnel implements WorkerTunnel {
   }
 
   /**
-   * 换址时用的**非抛版**等待（序⑦）：`open()` 要的是"能不能起来"这个布尔，
+   * 换址时用的**非抛版**等待：`open()` 要的是"能不能起来"这个布尔，
    * 而不是异常 —— 起不来就返回 `false`，由监管器决定"保持原通道"（D4）。
    *
-   * 🔴 **序⑨ · RC-1（C2 装配点）**：实现已抽到 {@link waitUpOnStatus}（三个装配点共用一份，D7）；
+   * 🔴 **RC-1（C2 装配点）**：实现已抽到 {@link waitUpOnStatus}（三个装配点共用一份，D7）；
    * 相对改造前的唯一差别 = **终态失败（死候选）立即 `false`**，⛔ 不再白等满 `upTimeoutMs`。
    */
   private async waitUpOn(client: RelayClient, timeoutMs: number): Promise<boolean> {

@@ -12,10 +12,10 @@ import { requireAdmin } from '../middleware/authn.js'
 import { userRoot } from '../../fs/workspace.js'
 import { scriptPath, stateDir } from '../../platform-paths.js'
 
-/** 新用户审批通过后自动铺「功能插件」分区的脚本（幂等）。
+/** 审批通过后自动执行的「初始化脚本」（可选 · 幂等；留空 = 不做任何事）。
  * 路径由**安装根**推导（`DSH_INSTALL_DIR` 可覆盖），⛔ 不写死绝对路径。 */
 const ENSURE_BIZ_PLUGINS =
-  process.env.DSH_ENSURE_BIZ_PLUGINS ?? scriptPath('ensure-biz-plugins.cjs')
+  process.env.DSH_ENSURE_BIZ_PLUGINS ?? ''
 
 /** 「平台共享模型」逐用户授权的入参（只有开关本身）。 */
 const sharedModelSchema = {
@@ -49,7 +49,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     if (user.role !== 'pending') return reply.code(409).send({ error: 'not_pending' })
     await app.db.setUserRole(id, 'active', request.user?.id)
     await app.db.audit(request.user?.id ?? null, 'approve', JSON.stringify({ userId: id }))
-    // 审批通过后异步铺「功能插件」分区（普通用户才能在设置里启停插件）。
+    // 审批通过后异步执行初始化脚本（给新用户预置插件 / profile 等），失败只记日志。
     // fire-and-forget：不阻塞审批响应；失败由巡检（cron 跑同一脚本）兜底。
     if (ENSURE_BIZ_PLUGINS === '') return { ok: true }
     const prov = spawn(process.execPath, [ENSURE_BIZ_PLUGINS, id], { stdio: "ignore", detached: true })
@@ -65,7 +65,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     if (user.role === 'admin') return reply.code(409).send({ error: 'cannot_disable_admin' })
     await app.db.setUserRole(id, 'disabled', request.user?.id)
     await app.db.deleteUserSessions(id)
-    await app.supervisor.stop(id) // 停掉该用户运行中的 DSH（待办.md §二）
+    await app.supervisor.stop(id) // 停掉该用户运行中的 DSH（待办清单）
     await app.db.audit(request.user?.id ?? null, 'disable', JSON.stringify({ userId: id }))
     return { ok: true }
   })

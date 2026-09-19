@@ -555,7 +555,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   })
 
   /**
-   * 平台共享模型的开关（口径② ＋ ）—— 只动**自己**的偏好，不碰 admin 的配置。
+   * 平台共享模型的开关（口径②）—— 只动**自己**的偏好，不碰 admin 的配置。
    *
    * ⚠️ 语义边界（别混）：本路由写的是 `shared_model_enabled` = **用户偏好**（"我要不要用"）；
    * **能否用**由 admin 在用户列表里写的 `shared_model_granted` 先定（默认关闭）。

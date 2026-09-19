@@ -460,7 +460,7 @@ export interface UpsertDshHostInput {
 
 /**
  * 抢占结果。`ok:false` 时带回**当前持有者**与租约到期时刻，便于调用方决定
- * "退让"还是"报告异常"（**不要据此接管** —— 见项目红线 R9）。
+ * "退让"还是"报告异常"（**不要据此接管** —— 见项目的硬性约束）。
  */
 export type ClaimResult =
   | { ok: true; epoch: number; leaseUntil: number }

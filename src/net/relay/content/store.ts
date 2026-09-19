@@ -1,5 +1,5 @@
 /**
- * 内容寻址存储 —— **"哈希 → 块"的本地仓库**（覆盖网络线 序㉔ · 内容分发）。
+ * 内容寻址存储 —— **"哈希 → 块"的本地仓库**（覆盖网络线 内容分发）。
  *
  * ## 一句话说清它是什么
  * 进程内的块仓库：`put(bytes) -> id`、`get(id) -> bytes|undefined`、`has(id) -> bool`。
@@ -15,8 +15,8 @@
  * 3. **计数全部可断言** —— 命中 / 未命中 / 淘汰 / 校验失败 / 拒绝超限，
  *    **每一项都落计数器**（⛔ 不许只写日志）：这是 E6 与"静默放行"回头条件的机器判据。
  *
- * ## 🆕 序㉘ · 单 B：**本层只处理"落库字节"**（启用组密钥加密时 = 密文）
- * 🔑 本单**不需要在本模块里加解密**，理由是一条源码事实：**键就是 id，而 id 是由字节算出来的**
+ * ## 🆕 单 B：**本层只处理"落库字节"**（启用组密钥加密时 = 密文）
+ * 🔑 本项目**不需要在本模块里加解密**，理由是一条源码事实：**键就是 id，而 id 是由字节算出来的**
  * ⇒ 口径只能有**一个**定义处（`chunker.ts`：`blockIdOf(落库字节)`）。所以：
  * - 调用方给什么口径的字节，本模块就存什么、校验什么 —— 加密启用后它拿到的是**密文**；
  * - 于是"中继进程持有什么"完全由调用方决定 ⇒ **`OBS-23` 的"明文不出现"判据落在装配层**
@@ -69,7 +69,7 @@ export interface ContentStoreOptions {
   /** 单块上限（字节）。缺省 = `maxBytes`（即"只要装得下就收"）。 */
   maxBlockBytes?: number
   /**
-   * 🆕 序㊻ · C（域分离）：块 id 的**域密钥**（per-network keyed hash）。
+   * 🆕 C（域分离）：块 id 的**域密钥**（per-network keyed hash）。
    *
    * 给了它 ⇒ 本层的两处复算（入库前 / 取出后）走 `HMAC-SHA256(netKey, bytes)`；
    * ⛔ 缺省 ⇒ 回落裸 `sha256`（= 回滚路径）。⚠️ **必须与写侧的 `netKey` 一致** ——
@@ -104,7 +104,7 @@ export class ContentStore {
   private readonly maxBytes: number
   private readonly maxBlockBytes: number
   private readonly dir: string | undefined
-  /** 🆕 序㊻ · C：块 id 的域密钥（`undefined` = 裸哈希口径，与序㉔ 逐字一致）。 */
+  /** 🆕 C：块 id 的域密钥（`undefined` = 裸哈希口径，与逐字一致）。 */
   private readonly netKey: Buffer | undefined
   private usedBytes = 0
   private seq = 0

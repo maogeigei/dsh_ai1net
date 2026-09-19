@@ -46,7 +46,7 @@ import { OPS_NETWORK, NAME_SEP, describeDialers, isNetworkId, logicalName, norma
 import { lookupKey, type RelayKeyEntry } from './keys.js'
 import { normalizePublicKey, verifyPeerGrant, verifyProof, type RevocationList } from './identity.js'
 /**
- * 序㉖：**relay 侧的抖动观测**用与平台侧**同一份**统计（`absDeltas` / `statsFromDeltas`）
+ * **relay 侧的抖动观测**用与平台侧**同一份**统计（`absDeltas` / `statsFromDeltas`）
  * ⇒ "实时选路看到的 p95"与"relay `/status` 报出的 p95"不可能出现两个数（口径分叉 = 假红/假绿）。
  */
 import { absDeltas, statsFromDeltas, jitterThresholds, type JitterStats } from './jitter.js'
@@ -68,7 +68,7 @@ export const DEFAULT_HB_SEC = 15
 export const DEFAULT_CAPACITY_RETRY_AFTER_MS = 5_000
 
 /**
- * **序㉖：利用率软门默认值（%）** —— 到它就拒新接入，留 30%+ 余量（用户口径「连接稳定高效」）。
+ * **利用率软门默认值（%）** —— 到它就拒新接入，留 30%+ 余量（用户口径「连接稳定高效」）。
  *
  * ⚠️ 它**不是**容量值：`RELAY_MAX_HOSTS`（7515 / 45% 设计口径）一字不动，软门只是提前拦。
  * 值可从参数表键 `RELAY_UTIL_MAX_PCT` 覆盖（见 {@link RelayServerOptions.utilMaxPct}）。
@@ -172,7 +172,7 @@ export interface RelayServerOptions {
   /** 满载时建议对端多久后再来（ms）。默认 5000。 */
   capacityRetryAfterMs?: number
   /**
-   * **序㉖：利用率软门（%）** —— `used / max × 100 ≥ 它` ⇒ 拒绝新接入（⛔ 不打满）。
+   * **利用率软门（%）** —— `used / max × 100 ≥ 它` ⇒ 拒绝新接入（⛔ 不打满）。
    *
    * `0` = 关闭（行为逐字回到改造前）。缺省 ⇒ env `RELAY_UTIL_MAX_PCT` ⇒ 70（见字段注释）。
    * ⚠️ **它不改任何既有生产值**：`RELAY_MAX_HOSTS` 仍是 7515，软门只是**提前**拦。
@@ -200,7 +200,7 @@ export interface RelayServerOptions {
    */
   dialers?: ReadonlySet<string> | ReadonlyMap<string, ReadonlySet<string>>
   /**
-   * **受信签名者公钥**（覆盖网络 序③）—— 用来验收 `HELLO` 里那条**节点入网凭据**的签名。
+   * **受信签名者公钥**（覆盖网络）—— 用来验收 `HELLO` 里那条**节点入网凭据**的签名。
    *
    * ⚠️ **relay 侧这道门是"辅助"**（D2）：身份的真正判据在**节点自己**那里（`identity.ts` 的
    * `verifyPeerGrant`）。relay 也验一遍，是为了让"未授权节点"**在英国人就近被挡住**，
@@ -245,7 +245,7 @@ export interface RelayServerOptions {
   /** 单会话订阅上限（`0` = 不限，默认）。 */
   presenceSubMax?: number
   /**
-   * **内容分发判别器的注入位**（序㉔ · 可选）。
+   * **内容分发判别器的注入位**（可选）。
    *
    * relay 是独立进程、内容面的装配点在平台侧 ⇒ relay 内核**不认识** content 的任何类型；
    * 谁装配谁注入一个"取快照"的纯函数即可（见 `RelayStatus.content`）。
@@ -335,7 +335,7 @@ interface Session {
   /** 最近一次心跳 RTT —— 链路质量的**实测**值，也是判断"是不是半开"的旁证。 */
   rttMs?: number
   /**
-   * **序㉖：本会话的 RTT 样本环**（每个 `PONG` 记一个，上限 = `JITTER_SAMPLE_MAX`）。
+   * **本会话的 RTT 样本环**（每个 `PONG` 记一个，上限 = `JITTER_SAMPLE_MAX`）。
    *
    * 🔴 为什么按**会话**存而不是存一个全局序列：不同对端的 RTT **基线不同**（47↔106 是跨云、
    * 47↔47 是回环）。把两台机器的 RTT 混进一条序列算差分，会把"切换对端"记成一次巨大抖动
@@ -359,7 +359,7 @@ interface Session {
 }
 
 /**
- * 在线态的**服务端权威记录**（序⑲）。
+ * 在线态的**服务端权威记录**。
  *
  * 🔑 **粒度 = 连接**（`conns`），对外聚合到 **host**：`conns.size > 0` ⇒ 在线。
  * 这样"同 hostId 两条连接断一条"天然仍是在线（第 6 条多设备聚合），而"全断"才进 grace。
@@ -469,15 +469,15 @@ export interface RelayStatus {
     used: number
     free?: number
     /**
-     * **序㉖：当前利用率（%）** = `floor(used × 100 / max)`；`max = 0`（不限）⇒ `0`。
+     * **当前利用率（%）** = `floor(used × 100 / max)`；`max = 0`（不限）⇒ `0`。
      * 判据 = 它 **必须 ≤ `utilMaxPct`**（否则新接入已被拒 ⇒ 说明软门在拦人）。
      */
     utilPct: number
-    /** **序㉖：利用率软门（%）** —— 探针拿它与参数表值对账（⛔ 防"装了但用的是另一套默认值"）。 */
+    /** **利用率软门（%）** —— 探针拿它与参数表值对账（⛔ 防"装了但用的是另一套默认值"）。 */
     utilMaxPct: number
   }
   /**
-   * **序㉖：抖动观测块**（`E2` 的 relay 侧落点）。
+   * **抖动观测块**（`E2` 的 relay 侧落点）。
    *
    * ⚠️ **没有样本时它也在**（各键为 0 / 空直方图）—— ⛔ 不许"没数据就少一个键"：
    * 那会让探针分不清「**没装**」与「**装了但还没采到**」，正是本线反复踩的"静默失效"。
@@ -486,7 +486,7 @@ export interface RelayStatus {
   jitter: JitterStats & {
     /** 有 ≥2 个 RTT 样本的会话数（= 能算出差分的会话数）。 */
     sessions: number
-    /** 劣化阈值（ms，= 参数表 **`JITTER_LIMIT_MS`**，序⑥ 就有的达标限值）—— 探针据此对账。 */
+    /** 劣化阈值（ms，= 参数表 **`JITTER_LIMIT_MS`**，就有的达标限值）—— 探针据此对账。 */
     thresholdMs: number
     /** `p95|ΔRTT| ≥ 阈值` ⇒ `true`（判别器；⛔ 不是"有样本就算超标"）。 */
     overThreshold: boolean
@@ -498,26 +498,26 @@ export interface RelayStatus {
     authFailed: number
     refused: number
     /**
-     * **序㉖：因利用率软门（`RELAY_UTIL_MAX_PCT`）被拒的注册数**。
+     * **因利用率软门（`RELAY_UTIL_MAX_PCT`）被拒的注册数**。
      *
      * ⛔ 与 `refused`（硬门 `at-capacity`）分开计：混在一起就分不清"真的装满了"与
      * "为保余量提前拦"—— 前者是容量不足（要扩容），后者是**按设计工作**。
      */
     utilRefused: number
-    /** 序③：通过节点凭据校验的注册数。 */
+    /** 通过节点凭据校验的注册数。 */
     identityOk: number
-    /** 序③：是否**强制**要求节点凭据。 */
+    /** 是否**强制**要求节点凭据。 */
     identityRequired: boolean
-    /** 序③：受信签名者把数（`0` + `identityRequired` ⇒ 谁也进不来，配置不完整）。 */
+    /** 受信签名者把数（`0` + `identityRequired` ⇒ 谁也进不来，配置不完整）。 */
     trustedSigners: number
-    /** 序③：当前吊销清单里的 hostId 数。 */
+    /** 当前吊销清单里的 hostId 数。 */
     revokedHosts: number
     dropped: number
     streamsOpened: number
     protocolErrors: number
     backpressurePauses: number
     /**
-     * 序⑤（观测最小集）：`DIAL` 的**判别器计数**。
+     * （观测最小集）：`DIAL` 的**判别器计数**。
      *
      * 为什么需要它：443 单 §12 留下的教训原文是「**静默失效靠判别器定位**」，判别器就是
      * 「relay 到底有没有 `DIAL`」—— 今天它**只存在于日志行**（`DIAL manager -> <host-b>:21000 ok`），
@@ -536,7 +536,7 @@ export interface RelayStatus {
     dialDenied: number
     dialFailed: number
     /**
-     * **presence 判别器**（序⑲）—— 口径与 `dial*` 同一条纪律：**不许只写日志**。
+     * **presence 判别器**—— 口径与 `dial*` 同一条纪律：**不许只写日志**。
      *
      * - `subs` —— 当前**存活**的订阅数（**gauge**，不是累计）；连接断了订阅就没了（第 3 条：
      *   订阅只活在连接期间）⇒ 它必须能回到 `0`。"声明了订阅但 `subs` 恒 0" ⇒ 订阅层没生效。
@@ -554,7 +554,7 @@ export interface RelayStatus {
     /**
      * `/status` 被读了几次（含**读它自己这一次**）。
      *
-     * 🔑 存在的理由：序⑲ 的核心收益是"订阅生效后**不再轮询** `/status`"，而在此之前
+     * 🔑 存在的理由：原有的核心收益是"订阅生效后**不再轮询** `/status`"，而在此之前
      * **没有任何办法断言这件事**（"没人轮询"与"轮询了但没被记录"完全同形）。
      * 判据用法 = **两次读数之差**：差 `1` ⇒ 只有你在读（= 轮询确实停了）。
      */
@@ -581,7 +581,7 @@ export interface RelayStatus {
     streams: number
   }[]
   /**
-   * **在线态视图**（序⑲ presence）—— 与 `sessions` 的差别是**粒度**：
+   * **在线态视图**（presence）—— 与 `sessions` 的差别是**粒度**：
    * `sessions` 是"一条连接一行"（诊断用），`presence` 是"**一台 host 一行**"
    * （同 hostId 多连接**已按 device 聚合**，第 6 条）⇒ 这才是订阅方消费的那张表。
    *
@@ -590,7 +590,7 @@ export interface RelayStatus {
    */
   presence: PresenceEntry[]
   /**
-   * **内容分发视图（序㉔ · 可选）** —— 块级内容寻址的判别器快照。
+   * **内容分发视图（可选）** —— 块级内容寻址的判别器快照。
    *
    * ⚠️ **可选**：未装配内容面（或装配方没注入 provider）时该字段为 `undefined`，
    * 此时 `/status` 的 JSON **不含它** ⇒ 既有消费方（Manager / 探针 / 前端）**零影响**。
@@ -619,7 +619,7 @@ export class RelayServer {
   private readonly maxHosts: number
   private readonly capacityRetryAfterMs: number
   /**
-   * **序㉖ · 利用率软门**（`E4`）：`used / max × 100 ≥ utilMaxPct` ⇒ **拒绝新接入**（⛔ 不打满）。
+   * **利用率软门**（`E4`）：`used / max × 100 ≥ utilMaxPct` ⇒ **拒绝新接入**（⛔ 不打满）。
    *
    * 为什么要有它：`maxHosts`（7515，45% 设计口径）是"**硬容量**"——到那一格才拦，等于把
    * **余量（55%）**当成可用空间；而用户口径要求的是「连接稳定高效」⇒ 中继必须**留 30%+ 余量**，
@@ -627,7 +627,7 @@ export class RelayServer {
    * ⇒ 软门取 **70%**（参数表 `RELAY_UTIL_MAX_PCT`，⛔ **不改** `RELAY_MAX_HOSTS` 本身）。
    *
    * ⚠️ 值来源两级：`opts.utilMaxPct` → env `RELAY_UTIL_MAX_PCT` → 默认 70。
-   * 走 env 兜底是**故意的**：装配点（`main.ts` 的 `--max-hosts` 那条路）**不在序㉖ 的在册文件集**内，
+   * 走 env 兜底是**故意的**：装配点（`main.ts` 的 `--max-hosts` 那条路）**不在原有的在册文件集**内，
    * 若要求"必须由装配点传"，生产上就永远不会生效（= 静默失效）。
    */
   private readonly utilMaxPct: number
@@ -641,7 +641,7 @@ export class RelayServer {
   private draining = false
   /** 归一化后的拨号方白名单（`network → hostId 集合`）。**构造时定型**，运行期不可改（安全判据）。 */
   private readonly dialers: ReadonlyMap<string, ReadonlySet<string>>
-  /** 受信签名者（序③）。**构造时定型** —— 与白名单同一条纪律：安全判据不在运行期被改。 */
+  /** 受信签名者。**构造时定型** —— 与白名单同一条纪律：安全判据不在运行期被改。 */
   private readonly trustedSignerKeys: readonly string[]
   private readonly revocations: RevocationList | undefined
   private readonly requireIdentity: boolean
@@ -657,15 +657,15 @@ export class RelayServer {
   private dropped = 0
   private streamsOpened = 0
   private protocolErrors = 0
-  /** 通过了**节点入网凭据**校验的注册数（序③ 的可观测判据：`0` 而 `authed > 0` ⇒ 身份层没生效）。 */
+  /** 通过了**节点入网凭据**校验的注册数（原有的可观测判据：`0` 而 `authed > 0` ⇒ 身份层没生效）。 */
   private identityOk = 0
   private backpressurePauses = 0
-  /** 序⑤ 判别器：`DIAL` 放行 / 策略拒绝 / 目标不可达（口径见 `RelayStatus.counters`）。 */
+  /** 判别器：`DIAL` 放行 / 策略拒绝 / 目标不可达（口径见 `RelayStatus.counters`）。 */
   private dial = 0
   private dialDenied = 0
   private dialFailed = 0
 
-  /* ── presence（序⑲）── */
+  /* ── presence── */
   /** 时序口径（全部可注入 ⇒ 单测不必真等 40 s）。 */
   private readonly presenceGraceMs: number
   private readonly presenceOfflineDebounceMs: number
@@ -673,7 +673,7 @@ export class RelayServer {
   private readonly presenceTtlMs: number
   private readonly presenceSubMax: number
   /**
-   * **内容分发判别器的注入位**（序㉔ · 可选）—— 见 `RelayServerOptions.statusContent`。
+   * **内容分发判别器的注入位**（可选）—— 见 `RelayServerOptions.statusContent`。
    * `undefined` ⇒ `/status` 不含 `content` 字段（零影响既有消费方）。
    */
   private readonly statusContent: (() => Record<string, unknown>) | undefined
@@ -687,28 +687,28 @@ export class RelayServer {
   private readonly presence = new Map<string, PresenceState>()
   /** 批合并定时器（1 s 窗口）—— presence 的**唯一**推送出口。 */
   private presenceTimer: NodeJS.Timeout | undefined
-  /** 序⑲ 判别器：累计推出的 presence 帧数（含 `SNAP`）。稳态必须停住不走。 */
+  /** 判别器：累计推出的 presence 帧数（含 `SNAP`）。稳态必须停住不走。 */
   private pushed = 0
   /**
-   * 序⑲ 判别器：其中 `SNAP`（**首帧即全量**）的帧数。
+   * 判别器：其中 `SNAP`（**首帧即全量**）的帧数。
    *
    * ⚠️ 单独立一个计数（而不是靠日志）才能把 E4 变成**可断言**的：
    * 有订阅者却一帧 `SNAP` 都没发过 ⇒ 说明首帧走的是"逐台拉"（N+1）那条老路。
    */
   private snaps = 0
-  /** 序⑲ 判别器：被显式拒绝的订阅请求数。 */
+  /** 判别器：被显式拒绝的订阅请求数。 */
   private rejected = 0
   /**
    * `/status` 的读取次数（**只在 HTTP 处理器里自增** ⇒ `status()` 被内部调用不计数）。
    * 首次读到的值就已包含"你这一次" ⇒ 判据用两次读数之差。
    */
   private statusHits = 0
-  /** **序㉖ 判别器**：因**利用率软门**被拒的注册数（⛔ 与 `at-capacity` 硬门分开计 —— 两者意义不同）。 */
+  /** **判别器**：因**利用率软门**被拒的注册数（⛔ 与 `at-capacity` 硬门分开计 —— 两者意义不同）。 */
   private utilRefused = 0
-  /** **序㉖ 判别器**：relay 侧观测到某会话抖动超标的次数（"告警"这条判据的可断言面）。 */
+  /** **判别器**：relay 侧观测到某会话抖动超标的次数（"告警"这条判据的可断言面）。 */
   private jitterAlerts = 0
   /**
-   * 序㉖：`[relay-jitter]` 告警的**按会话节流表**（`key = network/hostId` → 上次告警时刻）。
+   * `[relay-jitter]` 告警的**按会话节流表**（`key = network/hostId` → 上次告警时刻）。
    *
    * ⚠️ 用「会话 + 时间」两维节流：只按时间 ⇒ 多台同时抖会互相把对方的第一次挤掉；
    * 只按会话 ⇒ 持续抖动时会每 15 s 刷一行。
@@ -863,14 +863,14 @@ export class RelayServer {
     return ep.localPort
   }
 
-  /** 序㉖：当前利用率（%）；`max = 0`（不限容量）⇒ `0`。 */
+  /** 当前利用率（%）；`max = 0`（不限容量）⇒ `0`。 */
   private utilPct(): number {
     if (this.maxHosts <= 0) return 0
     return Math.floor((this.sessions.size * 100) / this.maxHosts)
   }
 
   /**
-   * **序㉖：relay 侧抖动聚合**。
+   * **relay 侧抖动聚合**。
    *
    * 口径（⛔ 三条都来自 `Session.rttSamples` 的设计理由，别改）：
    * 1. **差分在会话内算**（不同对端 RTT 基线不同，混序列会把"换对端"记成巨大抖动 = 假红）；
@@ -929,7 +929,7 @@ export class RelayServer {
               utilMaxPct: this.utilMaxPct,
             }
           : { max: 0, used: this.sessions.size, utilPct: 0, utilMaxPct: this.utilMaxPct },
-      /** 序㉖：抖动观测块（结构恒在，⛔ 不因"没样本"而缺键）。 */
+      /** 抖动观测块（结构恒在，⛔ 不因"没样本"而缺键）。 */
       jitter: this.jitterStats(),
       online: [...this.sessions.values()].map(
         (s) =>
@@ -939,23 +939,23 @@ export class RelayServer {
         authed: this.authed,
         authFailed: this.authFailed,
         refused: this.refused,
-        /** 序㉖：利用率软门拒绝数（⛔ 与硬门 `refused` 分开）。 */
+        /** 利用率软门拒绝数（⛔ 与硬门 `refused` 分开）。 */
         utilRefused: this.utilRefused,
         dropped: this.dropped,
         streamsOpened: this.streamsOpened,
         protocolErrors: this.protocolErrors,
         backpressurePauses: this.backpressurePauses,
-        /** 序⑤ 判别器：`DIAL` 放行 / 策略拒绝 / 目标不可达（脚本据此断言"拨号这条路通不通"）。 */
+        /** 判别器：`DIAL` 放行 / 策略拒绝 / 目标不可达（脚本据此断言"拨号这条路通不通"）。 */
         dial: this.dial,
         dialDenied: this.dialDenied,
         dialFailed: this.dialFailed,
-        /** 序③：通过节点凭据校验的注册数 / 是否强制身份（`requireIdentity`）与受信签名者把数。 */
+        /** 通过节点凭据校验的注册数 / 是否强制身份（`requireIdentity`）与受信签名者把数。 */
         identityOk: this.identityOk,
         identityRequired: this.requireIdentity,
         trustedSigners: this.trustedSignerKeys.length,
         revokedHosts: this.revocations?.hosts.length ?? 0,
         /**
-         * 序⑲ presence 判别器（口径见 `RelayStatus.counters` 的注释）。
+         * presence 判别器（口径见 `RelayStatus.counters` 的注释）。
          * `subs` 是 gauge（连接断了必须回到 0）；`pushed` 稳态必须**停住不走**。
          */
         subs: this.countSubs(),
@@ -984,7 +984,7 @@ export class RelayServer {
         streams: s.streams.size,
       })),
       /**
-       * 序⑲ presence：**订阅与轮询读的是同一份事实**（D5）—— 订阅走 `SNAP` / `PRESENCE` 帧，
+       * presence：**订阅与轮询读的是同一份事实**（D5）—— 订阅走 `SNAP` / `PRESENCE` 帧，
        * 轮询走 `/status`，两条路都从这里取数 ⇒ 不可能出现"两条路给出不同在线态"。
        */
       presence: [...this.presence.values()].map((st) => this.presenceEntry(st, now)),
@@ -996,7 +996,7 @@ export class RelayServer {
         subMax: this.presenceSubMax,
       },
       /**
-       * 序㉔：内容分发判别器快照 —— **可选**（未注入 ⇒ 本键不出现，旧消费方零影响）。
+       * 内容分发判别器快照 —— **可选**（未注入 ⇒ 本键不出现，旧消费方零影响）。
        * ⚠️ 用 `...(cond ? {content} : {})` 而不是 `content: undefined`：
        * 后者在 `JSON.stringify` 时同样消失，但会让"键存在"的断言在**内存态**下也成立
        * ⇒ 两种模式下行为不一致（本线最忌的"看着一样、其实不同"）。显式展开只保留一种形态。
@@ -1111,12 +1111,12 @@ export class RelayServer {
     const portsCsv = typeof msg.portsCsv === 'string' ? msg.portsCsv : ''
     const mac = typeof msg.mac === 'string' ? msg.mac.toLowerCase() : ''
     /**
-     * **成员资格（序③）**：密钥表就是权威 —— 它同时给出"这条密钥属于哪个 hostId"与
+     * **成员资格**：密钥表就是权威 —— 它同时给出"这条密钥属于哪个 hostId"与
      * "该 hostId 属于哪张网"。HELLO 里的 `network` 只是**待校验的声明**。
      *
      * ⇒ 声明与登记不一致 ⇒ **失败关闭**（`network-mismatch`）：⛔ 不回落 `ops`、⛔ 不放行。
      * 这一条补的正是「任何持有任意密钥的 host 都能进同一扁平命名空间」那个缺口
-     * （`设计说明 §待办②`）。
+     * （`设计文档 §待办②`）。
      */
     const entry = lookupKey(this.opts.keys, network, hostId)
     if (hostId === '' || entry === undefined || entry.secret === '') return deny('unknown-host')
@@ -1132,7 +1132,7 @@ export class RelayServer {
     const want = createHmac('sha256', Buffer.from(secret, 'hex')).update(`${hostId}|${ts}|${nonce}|${portsCsv}`).digest('hex')
     if (!safeEqualHex(want, mac)) return deny('bad-mac')
     /**
-     * ── 节点入网凭据（序③）────────────────────────────────────────────────────
+     * ── 节点入网凭据────────────────────────────────────────────────────
      *
      * 两道**独立**证明，都要过：
      * ① `grant` + `grantSig` —— 这台机器**被授权进入这张网**（由受信签名者签发）；
@@ -1224,7 +1224,7 @@ export class RelayServer {
       })
     }
     /**
-     * ── 序㉖ · **利用率软门**（`E4`：留 30%+ 余量，⛔ 不打满）─────────────────────
+     * ── **利用率软门**（`E4`：留 30%+ 余量，⛔ 不打满）─────────────────────
      *
      * 与上面的 `at-capacity` **是两道不同的门**（⛔ 不许合并、⛔ 不许改 `maxHosts`）：
      * - `at-capacity` = **硬容量**（7515 / 45% 设计口径）—— 到那一格是"装不下了"；
@@ -1294,7 +1294,7 @@ export class RelayServer {
     /**
      * presence（第 1 条）：**注册即在线** —— 在线态从连接生命周期来，⛔ 不等任何人来轮询。
      *
-     * 🔴 **顺序必须在本行之上那个 `ensureEndpoint` 循环之后**（序⑲ 收口前实测踩到）：
+     * 🔴 **顺序必须在本行之上那个 `ensureEndpoint` 循环之后**（收口前实测踩到）：
      * `presenceEntry` 里要带 `localPorts`（回环落点口号），而那个口号正是 `ensureEndpoint`
      * 才分配的。先 touch 再分配 ⇒ 首次推送里的落点是 **0**；而 `publishPresence` 只在
      * "在线态翻转"时才重推 ⇒ 那个 0 **永远修不回来** ⇒ 订阅方 `addressOf` 查不到落点 ⇒
@@ -1370,7 +1370,7 @@ export class RelayServer {
           session.rttMs = Date.now() - session.pingSentAt
           session.pingSentAt = undefined
           /**
-           * ── 序㉖：**抖动可观测**（`E2` 的 relay 侧落点）──
+           * ── **抖动可观测**（`E2` 的 relay 侧落点）──
            *
            * 采样点选在 `PONG` 到达这一刻是应该的：这是**唯一**的"新测量"时刻（⛔ 不是巡检时
            * 去读缓存 —— 那样同一个值会被反复记、差分恒 0、jitter 假绿，见 `jitter.ts`
@@ -1514,7 +1514,7 @@ export class RelayServer {
     /**
      * 目标**只在同一张网里找**（P0-1）：`DIAL.target` 是 hostId、不含网络维度 ⇒ 这里显式拼上
      * **拨号方自己**的网络。⛔ 绝不"在别的网里找到一个同名 host 就连过去" ——
-     * 那正是「一张巨网 + 靠 ACL 兜」的形态，也是本单要消灭的东西。
+     * 那正是「一张巨网 + 靠 ACL 兜」的形态，也是本项目要消灭的东西。
      */
     const worker = this.sessions.get(logicalName(session.network, target))
     if (worker === undefined) {
@@ -1574,7 +1574,7 @@ export class RelayServer {
     worker.portStreams.set(port, live + 1)
     session.dialRoutes.set(frame.streamId, { session: worker, st })
     this.streamsOpened += 1
-    // 序⑤ 判别器：**放行**点 —— 与 `streamsOpened` 同点自增，两条计数必须同步增长（口径：已回 ok:true）。
+    // 判别器：**放行**点 —— 与 `streamsOpened` 同点自增，两条计数必须同步增长（口径：已回 ok:true）。
     this.dial += 1
     // 先回拨号方（它的写侧从此刻起可用），再让 worker 开流；两端各自的水坝保证不丢字节。
     done(true, { workerStreamId: id })
@@ -1934,7 +1934,7 @@ export class RelayServer {
    * 运行期端口增删后同步（让订阅方拿到的 `ports` 与 `HELLO` / `PORT_ADD` 一致）。
    *
    * 🔑 **必须入队推送**（`force = true`）——`ports` / `localPorts` 也是"事实"：
-   * 序⑲ 之后 Manager 侧 `/status` 轮询会被挂起，订阅推送**是它唯一在更新的落点来源**
+   * 之后 Manager 侧 `/status` 轮询会被挂起，订阅推送**是它唯一在更新的落点来源**
    * （`web/server.ts` 的 `addressOf` ②）。只改本地 `st.ports` 而不推 ⇒ 新端口永远到不了订阅方
    * ⇒ 页面拨不通（同样是**假死**，不是报错）。这也**不违反 E1**：端口变了就是状态真的变了，
    * 属于"≤1 帧/次变化"的正常配额（并由批合并并进同一帧）。

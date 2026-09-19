@@ -259,7 +259,7 @@ export class LeasedSpawner implements Spawner {
    * ⛔ **严禁**在本函数里对 worker 下发停止（今天没有，将来也不许）；停止实例的正路是
    * `Spawner.stop(userId)`（路由层在用户**显式**停实例时调用），⛔ 不是退出路径。
    * ⚠️ 副作用（如实记账）：心跳停 ⇒ 租约过期 ⇒ **归属记录会与"仍在跑的实例"不一致**；
-   * 这是候选 `B` 的真实新增风险，靠 `cleanStaleScopes(uid)` ＋ 认领探活兜住（本单 §7.4 lease 行）。
+   * 这是候选 `B` 的真实新增风险，靠 `cleanStaleScopes(uid)` ＋ 认领探活兜住（本项目 §7.4 lease 行）。
    */
   async teardown(): Promise<void> {
     // ⛔ 退出不停实例（guard: teardown-must-not-stop-instances）—— 只停心跳，实例留给下一个进程

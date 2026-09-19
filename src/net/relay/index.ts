@@ -90,8 +90,8 @@ export type { ChooseOptions, NodeCandidate, PlacementDecision, PlacementScore, P
 export { relayEndpointTarget, hostNameIndex } from './endpoint-target.js'
 export type { RelayEndpointDecision, RelayEndpointTargetInput } from './endpoint-target.js'
 
-// ── 序㉔ 内容分发（块级内容寻址 · 同网段 peer 优先）────────────────────────────
-// ⛔ 本段**只做导出**（设计说明 §3.1：`index.ts` 改动仅限导出）。
+// ── 内容分发（块级内容寻址 · 同网段 peer 优先）────────────────────────────
+// ⛔ 本段**只做导出**（设计文档 §3.1：`index.ts` 改动仅限导出）。
 // 模块职责：`chunker`（切分＋哈希）→ `store`（内容寻址存储）→ `source`（源优先级链）
 //           → `peer`（同网段 peer 与分组隔离）。
 export {
@@ -125,7 +125,7 @@ export type {
 } from './content/peer.js'
 export { ContentRuntime } from './content/runtime.js'
 export type { ContentRuntimeOptions, ContentSnapshot } from './content/runtime.js'
-// 🆕 序㉘ · 单 B：组密钥加密（缺省不启用）—— 走**既有**验签链，⛔ 不新根、不新签名链。
+// 🆕 单 B：组密钥加密（缺省不启用）—— 走**既有**验签链，⛔ 不新根、不新签名链。
 export {
   ContentCipher,
   openContentCipher,
@@ -144,7 +144,7 @@ export {
   TAG_LEN,
   KEY_LEN,
   MIN_BLOB_LEN,
-  // 🆕 序㊻ · C（域分离）：块 id 的 per-network 域密钥（⛔ 不新增密钥文件 / 不新增 env）。
+  // 🆕 C（域分离）：块 id 的 per-network 域密钥（⛔ 不新增密钥文件 / 不新增 env）。
   BLOCK_ID_DOMAIN_TAG,
   deriveBlockIdKey,
 } from './content/crypto.js'
@@ -160,7 +160,7 @@ export type {
   LoadGroupKeyOptions,
 } from './content/crypto.js'
 
-// ── 序㊱ · 「节点一键加入与分组准入」P1（S1–S4）：网注册表 / 准入凭据 / 白名单派生 / join 编排 ──
+// ── 「节点一键加入与分组准入」P1（S1–S4）：网注册表 / 准入凭据 / 白名单派生 / join 编排 ──
 export {
   NETWORK_INVITE_TAG,
   NODES_REGISTRY_VERSION,
@@ -213,7 +213,7 @@ export type { JoinStep, JoinReason, StepReport, JoinOutcome, JoinIo, JoinOptions
 export { buildApplication, parseApplication, readApplicationFile } from './join.js'
 export type { NodeApplication } from './join.js'
 
-// ── 序㊵ · P2/S5：直连候选交换 ＋ 打洞探测（开关 / 默认值 / 提示 / 观测面）──
+// ── P2/S5：直连候选交换 ＋ 打洞探测（开关 / 默认值 / 提示 / 观测面）──
 export {
   DIRECT_MESSAGE_KIND,
   DIRECT_CAND_MAX_ADDRS,

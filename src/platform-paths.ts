@@ -58,7 +58,7 @@ export function installDir(): string {
   }
 }
 
-/** 代码根下的脚本路径（如 `installDir()/scripts/ensure-biz-plugins.cjs`）。 */
+/** 代码根下的脚本路径（如 `installDir()/scripts/verify-static.mjs`）。 */
 export function scriptPath(...parts: string[]): string {
   return join(installDir(), 'scripts', ...parts)
 }

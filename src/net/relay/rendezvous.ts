@@ -37,7 +37,7 @@ export interface RelayRendezvousOptions {
    */
   online?: (name: string) => boolean
   /**
-   * **订阅推送**的在线判定（**主路径**，序⑲ presence）。
+   * **订阅推送**的在线判定（**主路径**，presence）。
    *
    * 语义与 {@link RelayRendezvousOptions.online} 的关系（D5，"主路径 + 兜底"：
    * * 返回 `true` / `false` ⇒ **以它为准**（订阅新鲜，`/status` 的快照**不再被读**）；
@@ -61,7 +61,7 @@ export class RelayRendezvous implements Rendezvous {
 
   async resolve(name: string): Promise<Reachability | undefined> {
     /**
-     * **主路径 = 订阅推送**（序⑲）：订阅新鲜时它的答案就是权威答案（relay 亲口说的在线态）。
+     * **主路径 = 订阅推送**：订阅新鲜时它的答案就是权威答案（relay 亲口说的在线态）。
      * `undefined` = 订阅没生效 / 这条不在推送范围 ⇒ 才轮到下面的兜底。
      */
     const pushed = this.opts.presence?.(name)

@@ -1,15 +1,15 @@
 /**
- * 内容面**组密钥加密**（覆盖网络线 序㉘ · 单 B）—— 让"中继看不到明文载荷"与
+ * 内容面**组密钥加密**（覆盖网络线 单 B）—— 让"中继看不到明文载荷"与
  * "按哈希共享块"**同时成立**。
  *
  * ## 一句话说清它是什么
  * 同一个「内容组」`(network, group)` 共享**一把对称密钥**（AES-256-GCM，与 `src/crypto.ts` 同源）；
  * 加密是**确定性**的 ⇒ **同组 + 同明文 ⇒ 密文逐字节相同**（`md5` 相等）
- * ⇒ 序㉔ 的"块 id = 内容哈希"照旧成立（**组内共享不退化**），而中继只拿到不透明字节。
+ * ⇒ 原有的"块 id = 内容哈希"照旧成立（**组内共享不退化**），而中继只拿到不透明字节。
  *
  * ## 为什么必须"确定性"（⛔ 不是随便挑的加密模式）
  * 普通 GCM 每次随机 `iv` ⇒ 同明文两次密文不同 ⇒ **块 id 每次都变** ⇒ 去重与 peer 命中**全废**
- * （这正是序㉔ 主判据 `E1` 从 1.00× 退回 4.00× 的路径）。所以：
+ * （这正是主判据 `E1` 从 1.00× 退回 4.00× 的路径）。所以：
  * - `iv = HMAC(key, "iv"‖明文) 前 12 字节` —— **由明文决定，不留随机数**；
  * - `k  = HMAC(key, "k"‖iv)` —— 与 `iv` 一一对应 ⇒ **解密侧能复算**（解密时只有密文，没有明文）；
  * - `AAD = "<network>|<group>|<epoch>"` —— 把组与 epoch **绑进认证** ⇒ 跨组 / 跨 epoch 的密文
@@ -214,7 +214,7 @@ export interface LoadGroupKeyOptions {
    * 🔴 **为什么必须按平台分**（本地实测）：Windows **没有 POSIX 权限位** ——
    * `writeFileSync(p, x, {mode: 0o600})` 之后 `statSync(p).mode & 0o777` 恒为 `666`
    * ⇒ 无条件判会**把每个文件都判成 `bad-perms`**、加密**永远开不起来**。
-   * 而生产（47 / 106）是 Linux ⇒ 判据在那里**必须**成立。
+   * 而生产环境是 Linux ⇒ 判据在那里**必须**成立。
    * ⚠️ 本选项同时是"判据有牙"的证明位（单测用它在本机复现 `bad-perms`）。
    */
   enforcePerms?: boolean
@@ -301,7 +301,7 @@ export function describeGroupKey(file: string, r: GroupKeyLoadResult): string {
     : `[content-crypto] ⛔ 不启用加密：${r.reason} —— ${r.detail}`
 }
 
-// ── 🆕 序㊻ · C（域分离）：块 id 的 per-network 域密钥 ──────────────────────────────
+// ── 🆕 C（域分离）：块 id 的 per-network 域密钥 ──────────────────────────────
 
 /**
  * 块 id 域密钥的**派生标签**。
@@ -312,7 +312,7 @@ export function describeGroupKey(file: string, r: GroupKeyLoadResult): string {
 export const BLOCK_ID_DOMAIN_TAG = 'dsh_ai1net-overlay-block-id/v1'
 
 /**
- * 🆕 序㊻ · C（域分离）：从**组密钥本体**按 **network 维度**派生块 id 的域密钥。
+ * 🆕 C（域分离）：从**组密钥本体**按 **network 维度**派生块 id 的域密钥。
  *
  * ## 为什么复用组密钥链路（⛔ 不新增密钥文件 / ⛔ 不新增 env）
  * 块 id 的可观测面只有一件：**同一个 id 是否在两个 network 里同时出现**（跨租户相关性）。
@@ -430,7 +430,7 @@ export class ContentCipher {
   }
 
   /**
-   * 🆕 序㊻ · C（域分离）：**本网**的块 id 域密钥（由当前**写入**密钥派生）。
+   * 🆕 C（域分离）：**本网**的块 id 域密钥（由当前**写入**密钥派生）。
    *
    * ⚠️ 返回的是**派生钥**（32 B），⛔ **不是密钥本体** —— 但它仍是密钥材料 ⇒
    * 调用方**不许打印、不许进日志、不许进 `/status`**（`/status` 只放 `keyIdOf()` 指纹）。

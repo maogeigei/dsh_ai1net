@@ -10,7 +10,7 @@
     <!-- R5：平台多语言运行时（词条表 + data-i18n 就地替换；默认英语） -->
     <script src="/i18n.js"></script>
   <style>
-    /* R2-UI：提交忙碌态（点击后立刻可见；对齐 06-工作台UI规范 的按钮/圆角/主色） */
+    /* R2-UI：提交忙碌态（点击后立刻可见；对齐 工作台 UI 规范 的按钮/圆角/主色） */
     .btn[disabled] { opacity: .72; cursor: not-allowed; }
     .btn.is-busy { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
     .btn .sp { width: 14px; height: 14px; flex: 0 0 14px; border: 2px solid rgba(255,255,255,.45);
@@ -59,7 +59,7 @@
 
     <script>
 
-      // 显示/隐藏密码（对齐 06-工作台UI规范 的 .btn-icon 交互；键盘可达 = 原生 button）
+      // 显示/隐藏密码（对齐 工作台 UI 规范 的 .btn-icon 交互；键盘可达 = 原生 button）
       const pwInput = document.getElementById('password')
       const pwBtn = document.getElementById('pwToggle')
       if (pwInput && pwBtn) {

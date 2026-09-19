@@ -639,7 +639,7 @@ export class LocalSpawner implements Spawner {
    * the regression suite ＋ 探针 `OBS-22`。
    * ⚠️ 边界（如实）：`launchToken` 不可恢复 ⇒ 重启后 `enter` 仍可能 503，存量实例要在用户**下次访问**
    * 时被 `cleanStaleScopes` 自然替换。收益 = 「不被杀 ＋ 访问时自然替换」，⛔ **不是**「重启后直接可用」。
-   * 🔙 回滚 = 把下面那行循环加回来 ⇒ 秒级（本单 §6 路 A / 路 B）。
+   * 🔙 回滚 = 把下面那行循环加回来 ⇒ 秒级（本项目 §6 路 A / 路 B）。
    */
   async teardown(): Promise<void> {
     // ⛔ 退出不停实例（guard: teardown-must-not-stop-instances）
@@ -1002,7 +1002,7 @@ export class LocalSpawner implements Spawner {
       ...(this.config.bundledSkillDir !== ''
         ? (['--ro-bind-try', this.config.bundledSkillDir, this.config.bundledSkillDir] as string[])
         : []),
-      // 2026-09-11（v3 收尾 / ）：平台策略文件在实例内**只读**。
+      // 2026-09-11（v3 收尾）：平台策略文件在实例内**只读**。
       // 威胁模型：用户可把 <userRoot>/home/profiles/web 加为工作区，随后用 bash 直接改写
       // cordis.patch.yml（去掉平台段 → 恢复全盘 picker）或 package.json（挂任意 bundle）→
       // 属"绕过平台策略"（跨租户仍不成立，uid/bwrap 隔离不变）。

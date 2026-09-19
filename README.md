@@ -7,17 +7,25 @@
 **DSH AI1NET is a capability network** — every machine is a node, every user gets an isolated workspace, and nodes behind NAT reach each other through a self-built relay or a direct path. One command installs it; a browser operates it.
 
 [![Node](https://img.shields.io/badge/node-%5E22.19%20%7C%20%3E%3D24-339933.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-v1.4.0-informational.svg)](#version-history)
+[![Version](https://img.shields.io/badge/version-v1.4.1-informational.svg)](#version-history)
 [![DeepSeek Harness](https://img.shields.io/badge/built%20on-DeepSeek%20Harness-4D6BFE.svg)](https://github.com/deepseek-ai/deepseek-harness)
 [![Code & docs](https://img.shields.io/badge/code%20%26%20docs-human--planned,%20AI--implemented-8A2BE2.svg)](manual/project.md#how-this-project-is-built)
 [![Built with](https://img.shields.io/badge/DeepSeek%20V4%20%2F%20V4.1%20flash-2F6FED.svg)](manual/project.md)
 
-### How it is designed
+### Why this project
 
-- **Isolation is a kernel boundary, not a convention** — one OS account and one instance per user, plus a port guard and an egress guard.
-- **No node opens an inbound port** — every node dials out; the relay binds loopback only, so adding nodes never adds public surface.
-- **Identity is decided before address** — whether a node may join is verified on the node itself, so a compromised control plane cannot insert one.
-- **Failure is always named** — a refused join, a dead path or a rejected address handout carries a structured reason; nothing degrades silently.
+DeepSeek Harness is built for **one person on one machine**: one profile, one data directory, no notion of who else is using it. That is the right shape for a local tool, but it leaves every question a host has to answer unanswered — who is allowed in, whose data is whose, who holds the model key, what happens when a process dies, and what a user may install.
+
+The two obvious ways out both cost something. A hosted service takes the data out of your hands. Giving everyone their own local install means nothing is shared and nobody administers anything.
+
+This project is the third path: **stay on hardware you own, and take on the work a host has to do.**
+
+| That work | Why it cannot be skipped |
+|---|---|
+| **Isolation at a kernel boundary** | One OS account and one instance per user. A file-permission convention is a convention, not a boundary |
+| **No inbound port on any node** | If adding a node means exposing a port, the deployment grows its attack surface every time it grows |
+| **Identity decided before address** | Whether a node may join is verified on the node itself, so a compromised control plane cannot insert one |
+| **Failure that names itself** | On hardware you do not sit and watch, "something went wrong" is not something you can act on |
 
 ### What it solves
 
@@ -229,6 +237,12 @@ There is a quieter seventh one: a client plugin whose `inject` lists a UI packag
 📦 **Worked example: [examples/dsh-univer-office/](examples/dsh-univer-office/)** — the porting patch, new modules and companion skill, with the upstream baseline and how to apply it.
 
 ## Version history
+
+### v1.4.1 — 2026-09-19 · fix
+
+- **A cold-starting instance answers `503` instead of a bare socket close** — while an instance is coming up its port is already allocated but nothing is listening yet; the proxy used to drop the connection without writing a response, which the edge could only report as `502`. It now replies `503` with `Retry-After`, and a navigation request gets a small page that retries on its own. Only a response already in flight is torn down.
+- **The README opening now explains why the project exists** — the questions a single-user local tool leaves unanswered once you hand it to a group, why hosting it yourself is the third option, and the work that choice implies.
+- **Housekeeping** — the overlay network's operational probes and drills no longer ship: they are written against one specific two-machine deployment, their runbooks live with the operator documentation, and the host identifiers are part of their code rather than their wording.
 
 ### v1.4.0 — 2026-09-19 · feature
 

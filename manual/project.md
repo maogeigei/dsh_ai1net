@@ -38,13 +38,21 @@ The release history — every version with its list of changes — lives on the 
 | Direction, scope, architecture decisions, review and acceptance | Human |
 | Code, verification scripts, documentation, porting examples | AI |
 
-### Working with an AI that has no memory
+### Collaborating when project information exceeds the context
 
-A session carries everything it has ever read or run, and every later turn has to carry it again. Two mechanics keep that from becoming the bottleneck: one bounds what goes in, the other decides when to start fresh.
+A session carries everything it has ever read or run, and every later turn has to carry it again. Past a certain size that stops being a detail and becomes the bottleneck — so two mechanics exist for it: one bounds what goes in, the other decides when to start fresh.
 
 **Keeping the context clean.** One batch of work once pushed a session past a quarter of a million tokens, and every turn after that carried the weight. What contains it: bulk work runs as a **script** rather than a long series of individual calls; oversized command output is intercepted and truncated before it lands; the same file is not re-read turn after turn; and context is treated as a budget with a ceiling. The priority order matters — **the number of calls inside one turn dominates**, then the water level, then the fixed prompt overhead. Bounding output without reducing the call count does not help much.
 
 **Session continuation.** When a session approaches its ceiling, the work continues in a fresh one instead of degrading in place. A **state document** — what was done, what remains, the next step — carries it forward; replaying the transcript would only recreate the problem. A continuation **must not cost more than it saves**: a fresh session that opens by running dozens of tools has gained nothing. And **only work the AI can decide alone may start automatically** — if a decision is still waiting on the human, no continuation is opened.
+
+**Who decides what.** Everything with a findable best answer is decided by the AI: approach, naming, parameters, deployment detail, how to diagnose, which version to depend on. It stops to ask only where there is **no best answer to be found** — business goals and priority, money and resource commitments, anything promised outward or touching compliance, credentials only the human holds, wording and taste, and anything whose blast radius reaches past the system in front of it.
+
+Red lines are asked **separately, in one sentence**: does this widen what can be reached, interrupt people who are using it right now, change more than a handful of files at once, or become hard to undo. A technical choice is never bundled into that question — it is settled first and then stated as already settled, so the human is not first made to read a design in order to answer.
+
+**Reporting.** Verdict first, evidence second, one source for the evidence. "I do not know" is said out loud rather than smoothed over.
+
+**Scope.** Only what was asked. Anything else noticed along the way is **reported, not fixed** — "it is small and obvious" is how unrequested changes get in.
 
 ### The working documents
 

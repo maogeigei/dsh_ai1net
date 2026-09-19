@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 平台侧 CI：类型检查 + 构建（设计说明 §C3）
+# 平台侧 CI：类型检查 + 构建
 #
 # 用法：bash scripts/ci.sh
 set -euo pipefail

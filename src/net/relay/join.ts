@@ -1,5 +1,5 @@
 /**
- * 覆盖网络 **S3 · join 编排**（序㊱ · 「节点一键加入与分组准入」P1）。
+ * 覆盖网络 **S3 · join 编排**（「节点一键加入与分组准入」P1）。
  *
  * ## 它解决的确切问题（缺口 ①：「一键加入」）
  * 今天把一台机器加进覆盖网要**手工做四件事**：
@@ -132,7 +132,7 @@ export interface JoinOptions {
   /** 控制面入口（**HTTP 通道**；使用它需要控制面已开放接收入口）。 */
   portalUrl?: string
   /**
-   * 🆕 序㊵（P2/S5）：本机的**直连（打洞）开关**是否开启。
+   * 🆕 （P2/S5）：本机的**直连（打洞）开关**是否开启。
    *
    * 缺省 = {@link DEFAULT_DIRECT_ENABLED}（**开** —— 用户 2026-09-18 12:22 原话「默认开启提示用户」）。
    * ⚠️ 它只写进**本机配置**（`direct` 字段）—— ⛔ 不写任何 drop-in / env：
@@ -216,7 +216,7 @@ export async function runJoin(opts: JoinOptions, io: JoinIo): Promise<JoinOutcom
   })
 
   // ── 步 ③：本机配置（`0600`；⛔ 不含私钥本体，只记"私钥在哪"）───────────────
-  //   🆕 序㊵（P2/S5）：多记一个 `direct` —— 本机**直连开关**（用户口径「默认开启提示用户」的落点）。
+  //   🆕 （P2/S5）：多记一个 `direct` —— 本机**直连开关**（用户口径「默认开启提示用户」的落点）。
   const directEnabled = opts.direct ?? DEFAULT_DIRECT_ENABLED
   const localConfig = {
     version: 1,

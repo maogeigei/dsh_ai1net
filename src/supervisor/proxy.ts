@@ -244,6 +244,43 @@ async function resolveSubdomainAccess(
   return { endpoint, userId: session.user.id }
 }
 
+/**
+ * 2026-09-19：**实例冷启动窗口内不许裸断连接**。
+ *
+ * 实测事故（admin 首次用新域 `admin.<baseDomain>` 进场）：
+ *   16:06:52 `POST /api/dsh/enter`（耗时 11.1 s）拉起实例，scope 16:06:52 建立；
+ *   16:07:04（12 s 后）用户 GET `/` —— 此时实例**进程已在、端口已分配**但 dsh 尚未开始监听，
+ *   本文件的转发重试两次都失败 ⇒ 旧代码 `reply.raw.destroy()` **不写任何响应**
+ *   ⇒ 边缘 nginx 只能记 `upstream prematurely closed connection while reading response header`
+ *   并回 **502**（平台 journal 里该请求只有 `incoming request`、没有 `request completed`，
+ *   正是"平台接了却没回"的铁证），浏览器看到的是一张无信息的 502 页。
+ *
+ * 处置：响应头尚未发出时回 **503 + Retry-After**（导航请求给一页会自刷新的极简 HTML），
+ * 与「实例未就绪要给过渡/可重试信号」的既有口径一致；只有**已开始写响应**时才允许 destroy。
+ */
+function replyUpstreamUnavailable(request: FastifyRequest, reply: FastifyReply): void {
+  if (reply.raw.headersSent || reply.raw.writableEnded) {
+    reply.raw.destroy()
+    return
+  }
+  const isNav =
+    request.raw.method === 'GET' && String(request.headers.accept ?? '').includes('text/html')
+  const common = { 'retry-after': '2', 'cache-control': 'no-store' }
+  if (isNav) {
+    reply.raw.writeHead(503, { ...common, 'content-type': 'text/html; charset=utf-8' })
+    reply.raw.end(
+      '<!doctype html><meta charset="utf-8"><title>实例启动中</title>' +
+        '<body style="font:15px/1.7 system-ui,sans-serif;padding:48px;color:#333">' +
+        '<h3 style="margin:0 0 8px">实例启动中…</h3>' +
+        '<p style="margin:0;color:#666">正在唤醒你的工作区，页面将在 2 秒后自动重试。</p>' +
+        '<script>setTimeout(function(){location.reload()},2000)</script>',
+    )
+    return
+  }
+  reply.raw.writeHead(503, { ...common, 'content-type': 'application/json' })
+  reply.raw.end('{"error":"instance_starting"}')
+}
+
 function proxyHttp(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -444,7 +481,7 @@ function proxyHttp(
         //   且**普通刷新会命中缓存的外壳、复现不消失**（2026-09-14 真实事故：当天连铺 4 次插件 + 2 次重启平台）。
         //   ⇒ 外壳加 no-cache 后，浏览器每次都会回源取到**当前**的外壳与 rev。
         //
-        // ⚠️ 勿删：这是 UI 改动能否被验收的前置机制（`06-工作台UI规范 §6.5`）。
+        // ⚠️ 勿删：这是 UI 改动能否被验收的前置机制（`工作台 UI 规范`）。
         if (
           targetPath.startsWith('/plugins/') ||
           targetPath.startsWith('/assets/') ||
@@ -509,12 +546,13 @@ function proxyHttp(
           reply.raw.writeHead(status, headers)
           reply.raw.end(out)
         })
-        upRes.on('error', () => reply.raw.destroy())
+        upRes.on('error', () => replyUpstreamUnavailable(request, reply))
       },
     )
     upstream.on('error', () => {
       if (connRetry) {
-        reply.raw.destroy()
+        // 冷启动窗口：实例端口已分配但还没监听 ⇒ 回 503（不是裸断连接，见 helper 注释）。
+        replyUpstreamUnavailable(request, reply)
         return
       }
       // A stale keep-alive socket, or an instance that just restarted: drop the pool,

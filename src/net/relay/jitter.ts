@@ -13,8 +13,8 @@
  *
  * ## 三条口径（⛔ 改这三条等于改判据，必须同步改参数表）
  *
- * 1. **量 = `|ΔRTT|` 的 p95**（相邻两次心跳往返之差的绝对值），与 `scripts/overlay-jitter.cjs`
- *    序⑥ 实测所用的**同一个量**（`p95AbsDelta`）⇒ 历史读数（`p95 = 3 ms`）与本模块**同口径可比**。
+ * 1. **量 = `|ΔRTT|` 的 p95**（相邻两次心跳往返之差的绝对值），与 `覆盖网络抖动探针`
+ *    实测所用的**同一个量**（`p95AbsDelta`）⇒ 历史读数（`p95 = 3 ms`）与本模块**同口径可比**。
  * 2. **序 = jitter 升序**，且 **只对"已测出样本"的候选生效**；**无样本者保原序排在其后**
  *    （⛔ 不惩罚"还没测过的备用中继"，也不凭空给它排位 —— 见 {@link orderByJitter}）。
  * 3. **零样本 ⇒ 逐字返回原数组**（⛔ 这是零回归的机器判据 `D9`：观测器没喂过数，
@@ -30,9 +30,9 @@
  *
  * `JITTER_ENABLE` / `JITTER_SAMPLE_MAX` / `JITTER_MIN_SAMPLES` / **`JITTER_LIMIT_MS`** /
  * `JITTER_HIST_MAX_MS` / `JITTER_HIST_BUCKETS` / `JITTER_SAMPLE_GAP_MS`
- * （口径见 `参数表_覆盖网络_20260917.md §3.7`）。
+ * （口径见 本线的参数表）。
  *
- * 🔴 **劣化阈值复用 `JITTER_LIMIT_MS`（⛔ 不新造 `JITTER_SWITCH_MS`）**：该键在序⑥ 就已登记
+ * 🔴 **劣化阈值复用 `JITTER_LIMIT_MS`（⛔ 不新造 `JITTER_SWITCH_MS`）**：该键在就已登记
  * （值 `20 ms`，语义 = `p95(|ΔRTT|)` 的**达标限值**）—— "超标"与"劣化到该换路"是**同一件事**
  * ⇒ 新造一个同值键只会变成"同一事实两处写"（本线的知识碎片化教训）。
  *
@@ -50,7 +50,7 @@ export interface JitterThresholds {
   /**
    * **劣化阈值**：`p95(|ΔRTT|) ≥ 它` ⇒ 这条路径被判"不稳"，允许换到更稳的候选。
    *
-   * ⚠️ 来源 = 参数表的 **`JITTER_LIMIT_MS`**（序⑥ 就有的"达标限值"；⛔ 不是新键）。
+   * ⚠️ 来源 = 参数表的 **`JITTER_LIMIT_MS`**（就有的"达标限值"；⛔ 不是新键）。
    */
   switchMs: number
   /** 直方图上界（`≥ 它` 的样本落进末桶）。 */
@@ -97,7 +97,7 @@ export function jitterThresholds(env: Record<string, string | undefined> = proce
  * 相邻样本的一阶差分绝对值 = **抖动量**（⛔ 不是标准差）。
  *
  * 🔴 为什么不用标准差：标准差会把"单调漂移"（排队时延缓慢变化）算成抖动，而交互式会话真正
- * 怕的是**相邻两拍之间的突变**（卡一下）。序⑥ 的实测口径同样是相邻差分 ⇒ 保持一致。
+ * 怕的是**相邻两拍之间的突变**（卡一下）。原有的实测口径同样是相邻差分 ⇒ 保持一致。
  */
 export function absDeltas(samples: readonly number[]): number[] {
   const out: number[] = []
@@ -109,9 +109,9 @@ export function absDeltas(samples: readonly number[]): number[] {
 }
 
 /**
- * 百分位（**与 `scripts/overlay-jitter.cjs` 逐字同口径**：`sorted[min(len-1, floor(len·p))]`）。
+ * 百分位（**与 `覆盖网络抖动探针` 逐字同口径**：`sorted[min(len-1, floor(len·p))]`）。
  *
- * ⚠️ 口径必须与脚本一致，否则"实时选路看到的 p95"与"运维点测的 p95"会给出**两个数**。
+ * ⚠️ 口径必须与运维点测一致，否则"实时选路看到的 p95"与"运维点测的 p95"会给出**两个数**。
  */
 export function percentile(values: readonly number[], p: number): number {
   if (values.length === 0) return 0
@@ -317,7 +317,7 @@ export function pickJitterTarget(opts: {
  * 都用它 ⇒ 装配点**零改动**）。
  *
  * 🔴 为什么必须是单例：装配点（`src/web/server.ts` / `src/worker/relay-tunnel.ts` /
- * `src/net/relay/main.ts`）**不在序㉖ 的在册文件集**内 ⇒ 若把 tracker 做成"构造时注入"，
+ * `src/net/relay/main.ts`）**不在原有的在册文件集**内 ⇒ 若把 tracker 做成"构造时注入"，
  * 生产上**永远不会被注入** ⇒ 本序所有判据都变成**静默失效**（装了但一次都没生效）。
  * 单例把"接线"这件事**从装配点挪进模块内部**，代价是"测试要能换掉它" ⇒ 见
  * {@link setSharedJitterTracker}。

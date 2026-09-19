@@ -1,5 +1,5 @@
 /**
- * 块级切分 —— **内容寻址的第一块地基**（覆盖网络线 序㉔ · 内容分发）。
+ * 块级切分 —— **内容寻址的第一块地基**（覆盖网络线 内容分发）。
  *
  * ## 一句话说清它是什么
  * 把一段字节流按**固定大小**切成块，**每块的 id 是它自己内容的哈希**。
@@ -23,12 +23,12 @@
  *    又短到 URL / 索引友好。⚠️ **不掺入内容长度、不掺入序号** ——
  *    id 必须**只由字节内容决定**，否则"同内容不同来源 ⇒ 不同 id"会让共享失效（这是本线的核心判据）。
  *
- * ## 🆕 序㉘ · 单 B：**可选的编解码钩子**（缺省 ⇒ 本模块行为**逐字不变**）
+ * ## 🆕 单 B：**可选的编解码钩子**（缺省 ⇒ 本模块行为**逐字不变**）
  * 组密钥加密（`content/crypto.ts`）落地后，块 id 的口径从"明文哈希"改成
  * **密文哈希**（"β′"，见该单 §7.3）。做法**不是**在切分层里嵌加密逻辑，而是把
  * "字节变换"作为**注入的纯函数**传进来：
  * - `encode`（写侧）：`明文块 → 落库字节`。给了它 ⇒ `Chunk.bytes` 是**落库字节**（密文）、
- *   `Chunk.id = sha256(落库字节)`；⛔ 不传 ⇒ 与序㉔ **完全一致**（27 个既有用例一行不改）。
+ *   `Chunk.id = sha256(落库字节)`；⛔ 不传 ⇒ 与**完全一致**（27 个既有用例一行不改）。
  * - `decode`（读侧，在 `reassemble`）：`落库字节 → 明文块`。**恢复**原始内容的那一步。
  *
  * 🔑 为什么"加密"必须挂在这里而不是 `store`：`store` 的键就是 id，而 id 是**由字节算出来的**
@@ -36,7 +36,7 @@
  * ⚠️ 唯一例外是**解密实现**本身（`crypto.decodeBlock`）——它是**一处实现、两个调用位**
  * （`source.ts` 链的统一返回点 / 本模块的重组位），同一批字节**只过其中一处**。
  *
- * ## 🆕 序㊻ · C（域分离）：**per-network keyed hash**
+ * ## 🆕 C（域分离）：**per-network keyed hash**
  * 块 id / 内容 id 从"裸哈希"升级为 **`HMAC-SHA256(netKey, bytes)`**，输出仍取前
  * `BLOCK_ID_HEX_LEN` = 32 hex。`netKey` 是**域密钥**（由 `crypto.ts` 从组密钥按 network
  * 维度派生），经与 `encode` / `decode` **同一个注入通道**（`ChunkTransforms.netKey`）传进来。
@@ -101,18 +101,18 @@ export interface ChunkedContent {
 }
 
 /**
- * 可选的**字节变换钩子**（序㉘ · 单 B）。
+ * 可选的**字节变换钩子**（单 B）。
  *
  * ⚠️ 两个都必须是**纯函数且确定性**：同输入必须给同输出。给了非确定性实现（例如随机 iv），
  * 块 id 会次次不同 ⇒ 去重与 peer 命中**全废**（`E1` 从 1.00× 退回 4.00×）。
  */
 export interface ChunkTransforms {
-  /** 写侧：`明文块 → 落库字节`（加密）。缺省 = 恒等（⛔ 与序㉔ 逐字一致）。 */
+  /** 写侧：`明文块 → 落库字节`（加密）。缺省 = 恒等（⛔ 与逐字一致）。 */
   encode?: (plain: Buffer) => Buffer
   /** 读侧：`落库字节 → 明文块`（解密）。失败 ⇒ 返回 `undefined`（由调用方**具名**处置）。 */
   decode?: (stored: Buffer) => Buffer | undefined
   /**
-   * 🆕 序㊻ · C（域分离）：块 id 的**域密钥**（per-network keyed hash）。
+   * 🆕 C（域分离）：块 id 的**域密钥**（per-network keyed hash）。
    *
    * 给了它 ⇒ `blockIdOf` / `contentIdOf` 走 `HMAC-SHA256(netKey, bytes)`（输出仍取前
    * `BLOCK_ID_HEX_LEN` 位）；⛔ **缺省 / 空 ⇒ 回落裸 `sha256`**（= 回滚路径）。
@@ -141,8 +141,8 @@ function idDigestOf(bytes: Buffer, netKey?: Buffer): string {
 /**
  * 块 id。
  *
- * - ⛔ 不传 `netKey`（或缺省 / 空）⇒ **裸 `sha256(块字节)`** 前 `BLOCK_ID_HEX_LEN` 位（与序㉔ 逐字一致）；
- * - ✅ 传了 `netKey` ⇒ **`HMAC-SHA256(netKey, 块字节)`** 前同样位数（序㊻ · C 域分离）。
+ * - ⛔ 不传 `netKey`（或缺省 / 空）⇒ **裸 `sha256(块字节)`** 前 `BLOCK_ID_HEX_LEN` 位（与逐字一致）；
+ * - ✅ 传了 `netKey` ⇒ **`HMAC-SHA256(netKey, 块字节)`** 前同样位数（C 域分离）。
  */
 export function blockIdOf(bytes: Buffer, netKey?: Buffer): string {
   return idDigestOf(bytes, netKey)
@@ -151,8 +151,8 @@ export function blockIdOf(bytes: Buffer, netKey?: Buffer): string {
 /**
  * 整份内容的 id。
  *
- * - ⛔ 不传 `netKey` ⇒ 裸 `sha256(全部字节)`（与序㉔ 逐字一致）；
- * - ✅ 传了 `netKey` ⇒ `HMAC-SHA256(netKey, 全部字节)`（序㊻ · C 域分离）。
+ * - ⛔ 不传 `netKey` ⇒ 裸 `sha256(全部字节)`（与逐字一致）；
+ * - ✅ 传了 `netKey` ⇒ `HMAC-SHA256(netKey, 全部字节)`（C 域分离）。
  */
 export function contentIdOf(bytes: Buffer, netKey?: Buffer): string {
   return idDigestOf(bytes, netKey)
@@ -239,9 +239,9 @@ export function planOf(
  *
  * ⚠️ **每个块取回后必须自行复算 id 并与计划比对** —— 这就是 `E4` 的落点：
  * 篡改块 ⇒ 复算 id ≠ 计划 id ⇒ **丢弃并报错**（⛔ 不落盘、⛔ 不拼接）。
- * ⇒ "中间节点被控也改不了块"（设计说明 §7 的"完整性"那一半）。
+ * ⇒ "中间节点被控也改不了块"（设计文档 §7 的"完整性"那一半）。
  *
- * 🆕 序㉘ · 单 B：`parts` 是**落库字节**（加密启用时即密文）；给了 `transforms.decode`
+ * 🆕 单 B：`parts` 是**落库字节**（加密启用时即密文）；给了 `transforms.decode`
  * ⇒ **先验 id（对落库字节）、再解密、后拼接**。判据顺序刻意如此：
  * 完整性必须在**密文层**先成立（否则"解出来是乱码"会伪装成"块被篡改"）。
  *

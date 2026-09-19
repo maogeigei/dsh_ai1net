@@ -222,7 +222,7 @@ function collectStaleStages(dataRoot: string): string[] {
   return stale
 }
 
-// ── web provider 联动（2026-09-12 ）──────────────────────────────
+// ── web provider 联动（2026-09-12）──────────────────────────────
 // 为什么需要：dsh 的 web provider 选择是**单选** —— 显式配置即硬绑定（provider 一旦不在就报
 // CONFIGURED_MISSING 且**不回落**），未配置时只有「恰好一个可用」才自动选，多个可用直接
 // AMBIGUOUS 报错。于是「两个 provider 共存 + 用户可任意启停」必然出现坏状态。
