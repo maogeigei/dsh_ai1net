@@ -78,7 +78,7 @@ Three disciplines hold them together. They are taken **coarse first, fine second
 
 **Why a hook, and not the convention.** Left to memory, one session read "no execution lock held" as "the repository is free" rather than "go and take the lock", and two sessions edited it at once. The wording was corrected; the fix that actually holds is the one that does not depend on being read — a hook that refuses an edit into a locked repository and hands back the exact command to take the lock. It is deliberately narrow and deliberately not absolute: it covers document and code writes only, because a hook able to block the very command that acquires the lock is a deadlock, and one that fails closed on its own error costs more than it saves.
 
-#### Closing: how it is reported
+#### Closing: how it is reported, and how far it goes
 
 **Reporting.** Verdict first, evidence second, one source for the evidence. "I do not know" is said out loud rather than smoothed over.
 
