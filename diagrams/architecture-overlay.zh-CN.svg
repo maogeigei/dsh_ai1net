@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 660" width="1180" height="660" role="img" aria-label="覆盖网络架构图">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8250df"/>
+    </marker>
+    <style>
+      .t    { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif; }
+      .h1   { font-size: 27px; font-weight: 700; }
+      .sub  { font-size: 14px; fill: #57606a; }
+      .sec  { font-size: 15px; font-weight: 600; }
+      .lbl  { font-size: 13px; fill: #57606a; }
+      .chip { font-size: 13.5px; }
+      .box  { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.5; }
+      .ln   { stroke: #57606a; stroke-width: 1.8; fill: none; marker-end: url(#ar); }
+      .dash { stroke: #8250df; stroke-width: 1.8; fill: none; stroke-dasharray: 6 5; marker-end: url(#ar2); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="660" rx="14" fill="#f6f8fa"/>
+
+  <g fill="#1f2328">
+    <text class="t h1" x="40" y="50">覆盖网络 · 架构</text>
+    <text class="t sub" x="40" y="76">NAT 之后的节点不开任何入站端口就能互通 —— 每台只拨出一条出向连接，而中继自身只绑回环</text>
+
+    <!-- 管理节点 -->
+    <rect class="box" x="40" y="104" width="400" height="96" rx="10" stroke="#0969da" stroke-width="2"/>
+    <text class="t sec" x="64" y="138" fill="#0969da">管理节点 · 控制面</text>
+    <text class="t lbl" x="64" y="164">回环端口池</text>
+    <text class="t lbl" x="64" y="186">节点注册 · 准入选点</text>
+
+    <!-- 工作节点 -->
+    <rect class="box" x="740" y="104" width="400" height="96" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="764" y="138" fill="#1a7f37">工作节点 · NAT 之后</text>
+    <text class="t lbl" x="764" y="164">无入站端口 —— 只拨出，从不监听</text>
+    <text class="t lbl" x="764" y="186">沿用单机那套 spawner</text>
+
+    <!-- 直连（可选） -->
+    <path class="dash" d="M 444 152 L 736 152"/>
+    <text class="t lbl" x="446" y="136" fill="#8250df">直连（可选）</text>
+    <text class="t lbl" x="446" y="176" fill="#8250df">候选走既有连接交换</text>
+
+    <!-- 都拨出到中继 -->
+    <path class="ln" d="M 240 200 L 240 292"/>
+    <text class="t lbl" x="254" y="240">拨出 · 多路复用</text>
+    <path class="ln" d="M 940 200 L 940 292"/>
+    <text class="t lbl" x="954" y="240">拨出 · 多路复用</text>
+
+    <!-- 中继 -->
+    <rect class="box" x="40" y="296" width="1100" height="96" rx="10" stroke="#0969da" stroke-width="2"/>
+    <text class="t sec" x="64" y="330" fill="#0969da">中继</text>
+    <text class="t lbl" x="108" y="330">会合与多路复用 —— 只绑回环，不出现在公网</text>
+
+    <rect x="64" y="346" width="520" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="371">所有流跑在这一条出向连接上</text>
+    <rect x="616" y="346" width="500" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="632" y="371">增加节点不增加公网可达面</text>
+
+    <path class="ln" d="M 590 392 L 590 432"/>
+    <text class="t lbl" x="604" y="418">按节点分流</text>
+
+    <!-- 实例 -->
+    <rect class="box" x="40" y="436" width="353" height="112" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="64" y="468" fill="#1a7f37">实例</text>
+    <text class="t lbl" x="64" y="492">每用户一个 OS 账号</text>
+    <text class="t lbl" x="64" y="514">只绑回环端口</text>
+    <text class="t lbl" x="64" y="536">文件与实例操作同一套路由</text>
+
+    <!-- 内容面 -->
+    <rect class="box" x="413" y="436" width="353" height="112" rx="10"/>
+    <text class="t sec" x="437" y="468">内容面</text>
+    <text class="t lbl" x="437" y="492">分块存储 · 对端取回</text>
+    <text class="t lbl" x="437" y="514">组密钥加密</text>
+    <text class="t lbl" x="437" y="536">中继看不到明文</text>
+
+    <!-- 信任与地址 -->
+    <rect class="box" x="786" y="436" width="354" height="112" rx="10" stroke="#8250df" stroke-width="2"/>
+    <text class="t sec" x="810" y="468" fill="#8250df">信任与地址</text>
+    <text class="t lbl" x="810" y="492">四层密钥：根 → 签名者 → 节点 → 会话</text>
+    <text class="t lbl" x="810" y="514">准入在节点本地判定</text>
+    <text class="t lbl" x="810" y="536">地址来自可轮换的签名下发物</text>
+
+    <!-- 横切要点 -->
+    <rect x="40" y="572" width="1100" height="58" rx="10" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+    <text class="t chip" x="64" y="595">不可验证者一律带具名原因拒绝 —— 绝不静默回退到共享凭据或默认主机</text>
+    <text class="t chip" x="64" y="616">关掉直连不是功能降级：入网与准入照旧可用，流量只是继续走中继</text>
+  </g>
+</svg>

@@ -54,13 +54,14 @@ DeepSeek Harness 是为「**一个人、一台机器**」做的：一个 profile
 | 文档 | 内容 |
 |---|---|
 | **[manual/highlights.zh-CN.md](manual/highlights.zh-CN.md)** | 七组设计要点详解（隔离 · 自愈 · 插件治理 · 模型 · 可测 · 运维 · 覆盖网络） |
-| **[manual/architecture.zh-CN.md](manual/architecture.zh-CN.md)** | 基座、请求链路、自愈链路、部署形态、目录结构 |
+| **[manual/architecture.zh-CN.md](manual/architecture.zh-CN.md)** | 基座、请求链路、自愈链路、**覆盖网络**、部署形态、目录结构 |
 | **[manual/installation.zh-CN.md](manual/installation.zh-CN.md)** | 前置条件、DNS 与证书、两种部署方式对比、`nip.io` 演练、手动开发部署、**关于域名的全部内容** |
 | **[manual/configuration.zh-CN.md](manual/configuration.zh-CN.md)** | 全部环境变量、默认值与坑 |
 | **[manual/security.zh-CN.md](manual/security.zh-CN.md)** | 安全模型（逐面） |
 | **[manual/api.zh-CN.md](manual/api.zh-CN.md)** | 控制面 API 分组与权限 |
 | **[manual/faq.zh-CN.md](manual/faq.zh-CN.md)** | 真正会遇到的六个问题 |
-| **[manual/project.zh-CN.md](manual/project.zh-CN.md)** | 开发、贡献、版本、人与 AI 分工 |
+| **[manual/project.zh-CN.md](manual/project.zh-CN.md)** | 项目如何建成：人怎么定方向、AI 怎么照着方法定，以及协作怎么运转 |
+| **[manual/contributing.zh-CN.md](manual/contributing.zh-CN.md)** | 本地开发、Issue 与 PR、版本号与发布历史 |
 | **[PLUGIN-PORTING.zh-CN.md](PLUGIN-PORTING.zh-CN.md)** | 把插件改造成平台可用 —— 六个失败模式、五条规范、完整实战 |
 | **[examples/dsh-univer-office/](examples/dsh-univer-office/)** | 该实战的改造补丁、新增模块与配套技能 |
 | **[install.zh-CN.md](install.zh-CN.md)** | 写给 AI agent 执行的分步安装指令 |
@@ -248,6 +249,9 @@ curl -I https://test.dsh.example.com/                     # 期望 401（未登�
 - **README 开篇改为说明「为什么做这个项目」** —— 单用户本地工具交给一群人时留下了哪些没答的问题、为什么自己托管是第三条路、以及这条路要承担哪些工作。
 - **`manual/project.md` 补上协作方式** —— 人给出的判断方法、AI 如何**照着方法比出优劣、择优定下**（而不是回头再问）、方法在哪里就到头了，以及**凡是问到人的问题都长什么样**：**两三个候选 + 每个的优点与缺点**，由人判断。红线则是必须**单独提**的那一类。另含**在这么大的文档集里怎么找到该读的那一份**（一页现状卡 · 场景索引 · 自动生成的清单 —— 索引只放指针不放细节、且不写死任何计数）、把反复流程固化下来的技能、任务怎么在会话之间传递，以及让并行的多个会话不相撞的**三把锁**。整节现已按**实际运用的顺序**拆成子标题排列。
 - **整理** —— 覆盖网络的运维探针与演练脚本不再随仓库分发：它们是针对某一个特定双机部署写的，使用流程在运维文档里，且主机标识是代码的一部分而非措辞。
+
+- **`manual/project.md` 现在只讲「项目如何建成」** —— 本地开发、Issue 与 PR、版本号搬进新的 `manual/contributing.md`；本节标题与 README 里已有的跳转口径对齐，协作一节的小标题也回到正确的层级。
+- **架构文档补上覆盖网络** —— `manual/architecture.md` 新增覆盖网络一节，并配一张新图 `diagrams/architecture-overlay.svg`：NAT 之后的节点怎么只靠一条出向连接经中继互通、直连为什么是优化项、身份为什么先于地址。
 
 ### v1.4.0 —— 2026-09-19 · 特性
 

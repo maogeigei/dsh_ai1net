@@ -50,13 +50,14 @@ This page keeps only the essentials. Details live in the documents below.
 | Document | Contents |
 |---|---|
 | **[manual/highlights.md](manual/highlights.md)** | The seven design themes in full (isolation · self-healing · plugin governance · models · testability · operations · overlay network) |
-| **[manual/architecture.md](manual/architecture.md)** | The base, request path, self-healing path, deployment shape, repository layout |
+| **[manual/architecture.md](manual/architecture.md)** | The base, request path, self-healing path, **overlay network**, deployment shape, repository layout |
 | **[manual/installation.md](manual/installation.md)** | Prerequisites, DNS and certificates, both deployment options, the `nip.io` rehearsal, manual dev setup, **everything about domains** |
 | **[manual/configuration.md](manual/configuration.md)** | Every environment variable, defaults and gotchas |
 | **[manual/security.md](manual/security.md)** | The security model, surface by surface |
 | **[manual/api.md](manual/api.md)** | Control-plane API groups and permissions |
 | **[manual/faq.md](manual/faq.md)** | The six problems people actually hit |
-| **[manual/project.md](manual/project.md)** | Development, contributing, versions, who does what |
+| **[manual/project.md](manual/project.md)** | How this project is built: who sets the direction, how the AI decides by that method, and how the collaboration runs |
+| **[manual/contributing.md](manual/contributing.md)** | Local development, issues and pull requests, version numbers and release history |
 | **[PLUGIN-PORTING.md](PLUGIN-PORTING.md)** | Making a plugin work on a multi-tenant platform — six failure modes, five rules, a full case study |
 | **[examples/dsh-univer-office/](examples/dsh-univer-office/)** | That case study's porting patch, new modules and companion skill |
 | **[install.md](install.md)** | Step-by-step installation instructions written for an AI agent |
@@ -244,6 +245,9 @@ There is a quieter seventh one: a client plugin whose `inject` lists a UI packag
 - **The README opening now explains why the project exists** — the questions a single-user local tool leaves unanswered once you hand it to a group, why hosting it yourself is the third option, and the work that choice implies.
 - **`manual/project.md` gains the collaboration model** — the decision method the human supplies, how the AI weighs the options by it and takes the better one instead of coming back to ask, where the method runs out, and the form **every** question takes when it does reach the human: **two or three options, each with what it is good for and what it costs**, for them to judge. Red lines are the questions that must always be raised on their own. It also covers **how a document is found** in a set this size (a one-page brief, a scenario index, a generated manifest — with the index carrying pointers rather than detail, and no count written down by hand), the skills that fix the recurring procedures, how work passes between sessions, and the **three locks** that keep sessions working in parallel from colliding. The whole set is now laid out as sub-sections **in the order the work actually uses them**.
 - **Housekeeping** — the overlay network's operational probes and drills no longer ship: they are written against one specific two-machine deployment, their runbooks live with the operator documentation, and the host identifiers are part of their code rather than their wording.
+
+- **`manual/project.md` now covers only how the project is built** — local development, issues and pull requests, and version numbers moved into a new `manual/contributing.md`; the section title now matches the wording README already links to, and the sub-headings under the collaboration section sit at the right level again.
+- **The architecture document gained the overlay network** — `manual/architecture.md` now carries an overlay section with a new figure, `diagrams/architecture-overlay.svg`: how nodes behind NAT reach each other over one outbound connection through the relay, why the direct path is an optimisation, and why identity comes before address.
 
 ### v1.4.0 — 2026-09-19 · feature
 

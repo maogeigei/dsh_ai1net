@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 660" width="1180" height="660" role="img" aria-label="Overlay network architecture">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8250df"/>
+    </marker>
+    <style>
+      .t    { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+      .h1   { font-size: 27px; font-weight: 700; }
+      .sub  { font-size: 14px; fill: #57606a; }
+      .sec  { font-size: 15px; font-weight: 600; }
+      .lbl  { font-size: 13px; fill: #57606a; }
+      .chip { font-size: 13.5px; }
+      .box  { fill: #ffffff; stroke: #d0d7de; stroke-width: 1.5; }
+      .ln   { stroke: #57606a; stroke-width: 1.8; fill: none; marker-end: url(#ar); }
+      .dash { stroke: #8250df; stroke-width: 1.8; fill: none; stroke-dasharray: 6 5; marker-end: url(#ar2); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="660" rx="14" fill="#f6f8fa"/>
+
+  <g fill="#1f2328">
+    <text class="t h1" x="40" y="50">Overlay network · Architecture</text>
+    <text class="t sub" x="40" y="76">Nodes behind NAT stay reachable without opening an inbound port — each dials out one connection, and the relay binds loopback only</text>
+
+    <!-- manager -->
+    <rect class="box" x="40" y="104" width="400" height="96" rx="10" stroke="#0969da" stroke-width="2"/>
+    <text class="t sec" x="64" y="138" fill="#0969da">Manager · control plane</text>
+    <text class="t lbl" x="64" y="164">loopback port pool</text>
+    <text class="t lbl" x="64" y="186">node registry · admission and placement</text>
+
+    <!-- worker -->
+    <rect class="box" x="740" y="104" width="400" height="96" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="764" y="138" fill="#1a7f37">Worker · behind NAT</text>
+    <text class="t lbl" x="764" y="164">no inbound port — it only dials out</text>
+    <text class="t lbl" x="764" y="186">reuses the single-machine spawner</text>
+
+    <!-- direct path (optional) -->
+    <path class="dash" d="M 444 152 L 736 152"/>
+    <text class="t lbl" x="446" y="136" fill="#8250df">direct (optional)</text>
+    <text class="t lbl" x="446" y="176" fill="#8250df">candidates swap over the existing link</text>
+
+    <!-- both dial out -->
+    <path class="ln" d="M 240 200 L 240 292"/>
+    <text class="t lbl" x="254" y="240">dials out · multiplexed</text>
+    <path class="ln" d="M 940 200 L 940 292"/>
+    <text class="t lbl" x="954" y="240">dials out · multiplexed</text>
+
+    <!-- relay -->
+    <rect class="box" x="40" y="296" width="1100" height="96" rx="10" stroke="#0969da" stroke-width="2"/>
+    <text class="t sec" x="64" y="330" fill="#0969da">Relay</text>
+    <text class="t lbl" x="118" y="330">rendezvous and multiplexing — binds loopback only, never public</text>
+
+    <rect x="64" y="346" width="520" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="80" y="371">every stream rides that one outbound connection</text>
+    <rect x="616" y="346" width="500" height="40" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+    <text class="t chip" x="632" y="371">adding nodes adds no public surface</text>
+
+    <path class="ln" d="M 590 392 L 590 432"/>
+    <text class="t lbl" x="604" y="418">one stream per node</text>
+
+    <!-- instance -->
+    <rect class="box" x="40" y="436" width="353" height="112" rx="10" stroke="#1a7f37" stroke-width="2"/>
+    <text class="t sec" x="64" y="468" fill="#1a7f37">Instance</text>
+    <text class="t lbl" x="64" y="492">one OS account per user</text>
+    <text class="t lbl" x="64" y="514">binds a loopback port only</text>
+    <text class="t lbl" x="64" y="536">file and instance operations share the route</text>
+
+    <!-- content plane -->
+    <rect class="box" x="413" y="436" width="353" height="112" rx="10"/>
+    <text class="t sec" x="437" y="468">Content plane</text>
+    <text class="t lbl" x="437" y="492">chunked storage · fetched from peers</text>
+    <text class="t lbl" x="437" y="514">group key encrypted</text>
+    <text class="t lbl" x="437" y="536">the relay never sees plaintext</text>
+
+    <!-- trust and address -->
+    <rect class="box" x="786" y="436" width="354" height="112" rx="10" stroke="#8250df" stroke-width="2"/>
+    <text class="t sec" x="810" y="468" fill="#8250df">Trust and address</text>
+    <text class="t lbl" x="810" y="492">keys: root → signer → node → session</text>
+    <text class="t lbl" x="810" y="514">admission decided locally on the node</text>
+    <text class="t lbl" x="810" y="536">addresses from a rotatable signed artefact</text>
+
+    <!-- cross-cutting -->
+    <rect x="40" y="572" width="1100" height="58" rx="10" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+    <text class="t chip" x="64" y="595">anything unverifiable is refused with a named reason — never a silent fallback to shared credentials or a default host</text>
+    <text class="t chip" x="64" y="616">switching direct off is not a downgrade: joining and admission still work, traffic simply stays on the relay</text>
+  </g>
+</svg>

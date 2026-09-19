@@ -76,6 +76,18 @@ main instance crashes ──▶ spawn a "guardian instance" on demand to repair 
         └── repeated crashes ──▶ exponential backoff ──▶ circuit-breaker cooldown (10min up to 6h) ──▶ refuse to start during cooldown (503)
 ```
 
+## Overlay network
+
+<img src="../diagrams/architecture-overlay.svg" width="100%" alt="Overlay network architecture: the manager and a worker each dial out to a loopback-only relay; the worker sits behind NAT with no inbound port; an optional direct path runs between them, with the instance, content plane and trust layers below">
+
+Machines behind NAT with **no inbound port at all** stay reachable: each builds **one outbound connection** and the relay multiplexes every stream over it, while the relay itself **binds loopback only** — so adding nodes adds no public surface. To the caller the addresses stay an ordinary host and port, so changing transport does not disturb the request path.
+
+On top of that channel a **direct path** is attempted: candidates are exchanged over the **existing connection**, so it adds neither a port nor a protocol; it only counts when it works **in both directions**, and otherwise falls back with a named reason. Switching direct off is not a downgrade — joining and admission still work, traffic simply stays on the relay.
+
+**Identity before address**: whether a node may join is decided **locally on that node**, so a compromised control plane still cannot silently insert one; where it connects is decided by a **rotatable signed artefact** rather than compiled in. Anything unverifiable is refused with a named reason — never a silent fallback to shared credentials or a default host.
+
+The code is in `src/net/`. The design themes are in [highlights.md §7](highlights.md#7-overlay-network); the scalable interactive diagram is [overlay-architecture.html](../diagrams/archify/overlay-architecture.html).
+
 ## Deployment shape
 
 Single machine (bare metal + systemd + nginx): `sudo bash install.sh` deploys in one shot; the control plane orchestrates each per-user instance via `child_process` + `setuid`, data lives in a local SQLite database, and instances bind loopback ports only.

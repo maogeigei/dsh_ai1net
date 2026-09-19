@@ -2,34 +2,7 @@
 
 [← Back to README](../README.md)
 
-# Development, contributing, versions, who does what
-
-## Development
-
-```sh
-npm install          # pnpm or npm; Node ^22.19 || >=24
-npm run typecheck    # tsc --noEmit
-npm run verify       # build + static verification scripts  ← run before committing
-```
-
-**Rules for changes**: change `src/` and `web/` only — `lib/` is build output and edits there are overwritten; run `npm run verify` before committing; key decisions are written as pure functions, so change them together with their assertions; comments explain *why* — when the behaviour changes, the comment changes with it.
-
-## Contributing
-
-Issues and pull requests are welcome.
-
-- **Bug** — include reproduction steps, error messages and your environment (OS / Node / DSH versions)
-- **Suggestion** — describe the use case and the outcome you expect
-- **PR** — make sure `npm run typecheck && npm run verify` passes first
-- Commit messages are best prefixed with `feat:` / `fix:` / `chore:`
-
-## Versions
-
-Version numbers follow [semantic versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
-The release history — every version with its list of changes — lives on the homepage:
-**[README → Version history](../README.md#version-history)**.
-
-## How this project is built
+# How this project is built
 
 **Human planning and key judgment; implementation by AI** — model **DeepSeek V4 / V4.1 flash**.
 
@@ -38,11 +11,11 @@ The release history — every version with its list of changes — lives on the 
 | Direction, scope, architecture decisions, review and acceptance | Human |
 | Code, verification scripts, documentation, porting examples | AI |
 
-### How the collaboration works
+## How the collaboration works
 
 A codebase and a document set this size do not fit inside one session's context, and one session is not the only one working on them. What follows is the arrangement those two facts produce, **in the order it is actually used**: settle who decides what, find what is already known, keep the context inside its budget, continue past a single session, keep several sessions from colliding, and close the work out.
 
-#### First: who decides what
+### First: who decides what
 
 The human sets the direction and supplies the **decision method**; applying it is the AI's part. Whatever that method reaches — approach, naming, parameters, deployment detail, how to diagnose, which version to depend on — the AI weighs the options against it and **takes the better one**, rather than coming back to ask. It stops only where the method **cannot reach**: business goals and priority, money and resource commitments, anything promised outward or touching compliance, credentials only the human holds, wording and taste, and anything whose blast radius reaches past the system in front of it.
 
@@ -52,7 +25,7 @@ The human sets the direction and supplies the **decision method**; applying it i
 
 A technical choice is never bundled into any of them: it is settled first from the decision method and reported as already settled. What the human receives is **a set of proposals framed around a purpose** — they know which question is being answered and what to look for — so reading them means **reading with a question in mind**, not working through a design from scratch.
 
-#### Next: what is already known
+### Next: what is already known
 
 A text search across a document set this size returns more than anyone will read, so location is served by three layers at different resolutions: a **one-page brief** as the entry point — current state only, conclusions and pointers, never a copy of the detail; a **scenario index** answering "I need to do X, what do I read first", which also carries the rule for where a new document belongs; and a **generated manifest** giving the machine-readable view of every document — its tier, its subject area and its layer.
 
@@ -60,19 +33,19 @@ Two disciplines keep those layers from rotting. **The index carries pointers, no
 
 The session's own memory is layered to match: a **rolling daily log** that is only ever appended to, a small set of **curated long-term facts** under a hard size ceiling — so something must be dropped before something else is added — and a **detailed manual** for the mechanics that fit in neither. The short layers point into the long one instead of restating it.
 
-#### While working: keeping the context inside its budget
+### While working: keeping the context inside its budget
 
 One session ran a few dozen tool calls in its first turn and the context passed a quarter of a million tokens; every turn after that started from a context that size. What contains it: bulk work runs as a **script** rather than a long series of individual calls; oversized command output is intercepted and truncated before it lands; the same file is not re-read turn after turn; and context is treated as a budget with a ceiling. The priority order matters — **the number of calls inside one turn dominates**, then **how much of the context is already used**, then the fixed prompt overhead. Bounding output without reducing the call count does not help much.
 
 The recurring procedures are not improvised each time either. They are written once as **loadable skills**, and the relevant one is loaded when that kind of work starts: a full platform change, an open-source export, a plugin diagnosis, an instance diagnosis, moving the workspace to another machine, keeping the knowledge base straight, and carrying one long task across several sessions. The method for deciding is itself one of them. A skill is a document like any other — it goes stale, and it is corrected the moment that is noticed.
 
-#### Running long: continuing past a single session
+### Running long: continuing past a single session
 
 When a session approaches its ceiling, the work continues in a fresh one instead of degrading in place. A **state document** — what was done, what remains, the next step — carries it forward; replaying the transcript would only recreate the problem. A continuation **must not cost more than it saves**: a fresh session that opens by running dozens of tools has gained nothing. And **only work the decision method already covers may start automatically** — if a decision is still waiting on the human, no continuation is opened.
 
 A long task is handed from one session to the next as a **written brief** — goal, scope, what is read-only, decision points, steps, acceptance, rollback, and the report format to expect — rather than as a transcript the next session has to re-read.
 
-#### In parallel: the three locks
+### In parallel: the three locks
 
 Several sessions share one repository and one server, so mutual exclusion is explicit rather than assumed. A **coarse execution lock** allows one session at a time to touch documents, code or the server. A **fine lock per work item** still lets two sessions work on different items, as long as their conflict domains do not overlap. And an **operation lock on the server** exists because the failure a repository can see through `git status` — a modified file — is exactly the one a restarted service leaves no trace of.
 
@@ -80,13 +53,13 @@ Three disciplines hold them together. They are taken **coarse first, fine second
 
 **Why a hook, and not the convention.** Left to memory, one session read "no execution lock held" as "the repository is free" rather than "go and take the lock", and two sessions edited it at once. The wording was corrected; the fix that actually holds is the one that does not depend on being read — a hook that refuses an edit into a locked repository and hands back the exact command to take the lock. It is deliberately narrow and deliberately not absolute: it covers document and code writes only, because a hook able to block the very command that acquires the lock is a deadlock, and one that fails closed on its own error costs more than it saves.
 
-#### Closing: how it is reported, and how far it goes
+### Closing: how it is reported, and how far it goes
 
 **Reporting.** Verdict first, evidence second, one source for the evidence. "I do not know" is said out loud rather than smoothed over.
 
 **Scope.** Only what was asked. Anything else noticed along the way is **reported, not fixed** — "it is small and obvious" is how unrequested changes get in.
 
-### The working documents
+## The working documents
 
 Building this project left behind a large body of documents — research, plans, projections, forensics and retrospectives. They are the concrete output of "human plans and makes the key calls, AI implements".
 
