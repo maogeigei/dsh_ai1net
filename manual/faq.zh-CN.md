@@ -33,7 +33,7 @@
 <details>
 <summary><b>502 / 实例无响应</b></summary>
 
-按序查：`systemctl status dsh_ai1net` → `journalctl -u dsh_ai1net -n 100` → 管理台「服务管理」里实例是否在跑 → nginx `error_log`。反复重启通常是某插件与当前 DSH 版本不兼容，在「功能管理」里禁用它。
+按序查：`systemctl status dsh_ai1net` → `journalctl -u dsh_ai1net -n 100` → 管理台「服务管理」里实例是否在跑 → nginx `error_log`。反复重启通常是某插件与当前 DSH 版本不兼容，在「能力管理」里禁用它。
 </details>
 
 <details>

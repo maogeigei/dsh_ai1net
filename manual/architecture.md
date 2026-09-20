@@ -18,7 +18,7 @@ The diagram itself is in [README → Architecture](../README.md#architecture).
 
 > ⚠️ **How the version is pinned.** `install.sh` installs the **latest** `@deepseek-ai/dsh` and does not pin it, so the version actually in use is whatever the host has. Because DSH is in developer preview and ships breaking changes, the platform treats the DSH version as a **frozen runtime baseline** and builds both a **plugin compatibility pre-check** and **drift inspection** on top of it — so a host that has moved to a different DSH version is visible rather than silently broken.
 
-By default DSH is a **single-user, local** product: `npx @deepseek-ai/dsh web` starts a Web UI on `127.0.0.1:3080`, with plugins and skills all attached to one profile.
+DSH installs as a single process with a single profile: `npx @deepseek-ai/dsh web` starts a Web UI on `127.0.0.1:3080`, with plugins and skills all attached to that profile. Nothing in it models a second user.
 
 This project **neither modifies nor embeds** DSH's code. It wraps a hosting platform around it: one `dsh` instance is spawned per user as a child process, and the public side handles accounts and approval, routing and reverse proxying, isolation and guards, unified plugin and skill management, self-healing and operations.
 
@@ -26,7 +26,7 @@ This project **neither modifies nor embeds** DSH's code. It wraps a hosting plat
 
 ## Which parts of the official documentation do not apply here
 
-DSH's own documentation is written for **a single-user install you run locally**. Below are the specific upstream items that stop holding once DSH is hosted, and what the platform does instead.
+DSH's own documentation is written against an install of that shape: the reader is the operator, and the browser is on the same machine. Below are the specific upstream items that stop holding once DSH is hosted, and what the platform does instead.
 
 Sources: the [DeepSeek Harness README](https://github.com/deepseek-ai/deepseek-harness) (`master` branch) and its documentation site <https://deepseek-harness.github.io/deepseek-harness/>. Where an item is not a quotable upstream sentence but something we measured on a real deployment, it is marked **[measured]**.
 
@@ -58,7 +58,7 @@ That is upstream's discovery route (the GitHub [`dsh-plugin` topic](https://gith
 
 ### 5. "THERE WILL BE COMPATIBILITY-BREAKING CHANGES" and `SAFETY.md`
 
-Upstream is explicit that DSH is in developer preview with breaking changes, and points at `SAFETY.md` for the safety notice — but it is describing **a single-user local install**, so it offers **no isolation between tenants**.
+Upstream is explicit that DSH is in developer preview with breaking changes, and points at `SAFETY.md` for the safety notice — but that notice is written for an install of the shape above, so it offers **no isolation between tenants**.
 
 **What the platform does instead**: it treats the DSH version as a **frozen runtime baseline** (see [above](#the-base)), gates plugin enabling behind a compatibility pre-check, and layers uid isolation, a port guard and an egress guard on top.
 

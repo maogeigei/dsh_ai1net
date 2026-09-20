@@ -33,7 +33,7 @@ The port guard depends on iptables owner-match, and unsupported hosts **fail lou
 <details>
 <summary><b>502 / an instance is unresponsive</b></summary>
 
-Check in order: `systemctl status dsh_ai1net` → `journalctl -u dsh_ai1net -n 100` → whether the instance is running under "Service management" in the admin console → the nginx `error_log`. Repeated restarts usually mean a plugin is incompatible with the current DSH version; disable it under "Feature management".
+Check in order: `systemctl status dsh_ai1net` → `journalctl -u dsh_ai1net -n 100` → whether the instance is running under "Service management" in the admin console → the nginx `error_log`. Repeated restarts usually mean a plugin is incompatible with the current DSH version; disable it under "Capability management".
 </details>
 
 <details>
