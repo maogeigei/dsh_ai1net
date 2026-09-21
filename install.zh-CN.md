@@ -54,7 +54,7 @@ git clone https://github.com/maogeigei/dsh_ai1net.git && cd dsh_ai1net
 ## Step 3: 预演
 
 ```sh
-sudo bash install.sh --dry-run ${DOMAIN:+--domain "$DOMAIN"} ${EMAIL:+--email "$EMAIL"} --yes
+sudo bash install.sh --dry-run ${DOMAIN:+--domain "$DOMAIN"} ${EMAIL:+--email "$EMAIL"} --install-node --yes
 ```
 
 **Verify:** 输出是一串 `[dry-run] …` 且退出码 0；`--dry-run` **只打印、不落盘**，不应出现任何「已完成」式提示。

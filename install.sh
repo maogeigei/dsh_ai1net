@@ -136,6 +136,14 @@ preflight() {
   [ "$(id -u)" = "0" ] || die "需要 root：sudo bash install.sh ..."
   [ "$(uname -s)" = "Linux" ] || die "本脚本只支持 Linux 单机部署"
   command -v systemctl >/dev/null 2>&1 || die "未找到 systemd"
+  # 🔴 只查「命令在不在」不够 —— WSL / 容器里 systemctl 往往存在，但 systemd 并非
+  #    系统管理器（is-system-running 返回 offline）。放行的话会一路装到下面的
+  #    daemon-reload / enable / restart 才失败，留下半成品。
+  SYSSTATE="$(systemctl is-system-running 2>/dev/null || true)"
+  case "$SYSSTATE" in
+    running|degraded|starting) : ;;
+    *) die "systemd 未在运行（systemctl is-system-running = ${SYSSTATE:-无输出}）。WSL 上请在 /etc/wsl.conf 的 [boot] 段内加一行 systemd=true（勿新建重复段），再于 Windows 执行 wsl --shutdown 后重进" ;;
+  esac
   [ -f "$REPO_DIR/package.json" ] || die "请在仓库根目录执行（找不到 package.json）"
   c_ok "  ✓ Linux + root"
 
